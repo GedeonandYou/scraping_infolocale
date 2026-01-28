@@ -60,21 +60,12 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              {/* <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button size="sm">
-                  <Play className="h-4 w-4 mr-2" />
-                  Lancer Scraping
-                </Button>
-              </div> */}
             </div>
           </div>
         </header>
 
         <main className="container mx-auto px-4 py-8">
+
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatsCard
@@ -82,7 +73,6 @@ export default function Home() {
               value={mockEvents.length}
               subtitle="Total en base"
               icon={Calendar}
-              trend={{ value: 12, positive: true }}
             />
             <StatsCard
               title="Villes couvertes"
@@ -105,6 +95,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
             {/* Main content - Events */}
             <div className="lg:col-span-2 space-y-6">
               <div>
@@ -141,7 +132,7 @@ export default function Home() {
               <LogsPanel logs={mockLogs} />
 
               {/* Quick info */}
-              <div className="rounded-xl border border-border bg-card p-6">
+              {/* <div className="rounded-xl border border-border bg-card p-6">
                 <h3 className="font-semibold mb-4">Configuration</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
@@ -161,7 +152,7 @@ export default function Home() {
                     <span className="font-medium text-success">Activé</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </main>
