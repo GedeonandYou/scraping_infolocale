@@ -71,9 +71,9 @@ export function EventDetailSheet({
             >
               {event.category}
             </Badge>
-            <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
+            {/* <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
               ID: {event.uid}
-            </span>
+            </span> */}
           </div>
           <SheetTitle className="text-2xl leading-tight text-left font-bold">
             {event.title}
@@ -114,7 +114,7 @@ export function EventDetailSheet({
           {/* Location */}
           <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
             <div className="flex items-start gap-3 text-sm">
-              <div className="p-2 rounded bg-primary/10 flex-shrink-0">
+              <div className="p-2 rounded bg-primary/10 shrink-0">
                 <MapPin className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1">
