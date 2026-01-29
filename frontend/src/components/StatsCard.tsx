@@ -44,8 +44,8 @@ export function StatsCard({
             </p>
           )}
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-linear-to-br from-primary/20 to-primary/5 ring-1 ring-primary/10">
-          <Icon className="h-6 w-6 text-primary" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-linear-to-br from-blue-100 to-blue-50 dark:from-blue-950/40 dark:to-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800">
+          <Icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
         </div>
       </div>
     </div>
