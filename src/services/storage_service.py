@@ -73,7 +73,8 @@ class StorageService:
                         stmt = insert(ScannedEvent).values(**event_data)
                         stmt = stmt.on_conflict_do_nothing(index_elements=['uid'])
 
-                        result = session.exec(stmt)
+                        with session.begin_nested():
+                            result = session.exec(stmt)
 
                         if result.rowcount > 0:
                             saved_count += 1

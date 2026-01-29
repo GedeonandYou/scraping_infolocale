@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from src.services.scraper_service import ScraperService
 from src.services.storage_service import StorageService
+from src.services.opendata_import_service import OpenDataImportService
 from src.exporters.csv_exporter import CSVExporter
 from src.exporters.json_exporter import JSONExporter
 from src.models.database import engine, create_db_and_tables
@@ -27,13 +28,43 @@ def init_db():
 
 
 @app.command()
+def import_opendata(
+    max_records: int = typer.Option(None, help="Nombre maximum d'enregistrements à importer (None = tous)"),
+    csv_path: str = typer.Option(None, help="Chemin du fichier CSV local (optionnel)"),
+):
+    """Importer les événements depuis Open Data (data.gouv.fr)."""
+    console.print("[bold blue]Import des données Open Data Infolocale...[/bold blue]\n")
+
+    importer = OpenDataImportService()
+
+    try:
+        if csv_path:
+            # Import depuis un fichier CSV local
+            console.print(f"[cyan]Import depuis: {csv_path}[/cyan]")
+            total_imported = importer.import_csv(csv_path, max_records=max_records)
+        else:
+            # Télécharger et importer automatiquement
+            console.print("[cyan]Téléchargement et import automatique...[/cyan]")
+            total_imported = importer.download_and_import(max_records=max_records)
+
+        console.print(f"\n[bold green]✓ Import terminé: {total_imported} événements importés![/bold green]")
+
+    except Exception as e:
+        console.print(f"[bold red]✗ Erreur lors de l'import: {e}[/bold red]")
+        raise
+    finally:
+        importer.close()
+
+
+@app.command()
 def scrape(
     region: str = typer.Option(None, help="Région à scraper"),
     max_pages: int = typer.Option(5, help="Nombre maximum de pages à scraper"),
     geocode: bool = typer.Option(True, help="Activer le géocodage"),
 ):
-    """Lancer le scraping des événements."""
+    """Lancer le scraping HTML des événements (alternative à Open Data)."""
     console.print(f"[bold blue]Démarrage du scraping (max_pages={max_pages})...[/bold blue]")
+    console.print("[yellow]💡 Tip: Utilisez plutôt 'import-opendata' pour des données officielles![/yellow]\n")
 
     scraper = ScraperService()
 

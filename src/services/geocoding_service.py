@@ -1,7 +1,7 @@
-"""Service for geocoding addresses using Google Places API."""
+"""Service for geocoding addresses using OpenRouteService API."""
 
 from typing import Optional, Dict, Any
-import googlemaps
+import requests
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -11,17 +11,22 @@ settings = get_settings()
 
 
 class GeocodingService:
-    """Service to geocode addresses and enrich location data with Google Places API."""
+    """Service to geocode addresses and enrich location data with OpenRouteService API."""
 
     def __init__(self):
-        """Initialize Google Maps client."""
-        self.client = None
-        if settings.GOOGLE_PLACES_API_KEY:
-            try:
-                self.client = googlemaps.Client(key=settings.GOOGLE_PLACES_API_KEY)
-                logger.info("Google Maps client initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize Google Maps client: {e}")
+        """Initialize OpenRouteService client."""
+        self.api_key = settings.OPENROUTESERVICE_API_KEY
+        self.base_url = "https://api.openrouteservice.org/geocode"
+        self.session = requests.Session()
+
+        if self.api_key:
+            self.session.headers.update({
+                'Authorization': self.api_key,
+                'Content-Type': 'application/json'
+            })
+            logger.info("OpenRouteService client initialized successfully")
+        else:
+            logger.warning("OpenRouteService API key not configured")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -50,13 +55,13 @@ class GeocodingService:
                 'longitude': float,
                 'display_name': str,
                 'place_id': str,
-                'place_name': str,
-                'place_types': list[str],
-                'rating': float
+                'confidence': float,
+                'locality': str,
+                'region': str
             }
         """
-        if not self.client:
-            logger.warning("Google Maps client not initialized (missing API key)")
+        if not self.api_key:
+            logger.warning("OpenRouteService API key not configured")
             return None
 
         # Construct full address
@@ -68,46 +73,46 @@ class GeocodingService:
         full_address = ", ".join(address_parts)
 
         try:
-            # Geocode the address
-            geocode_result = self.client.geocode(full_address)
+            # Call OpenRouteService Geocoding API
+            url = f"{self.base_url}/search"
+            params = {
+                'text': full_address,
+                'boundary.country': 'FR',  # Limit to France
+                'size': 1  # Get only the best result
+            }
 
-            if not geocode_result:
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if not data.get('features'):
                 logger.warning(f"No geocoding results for address: {full_address}")
                 return None
 
-            result = geocode_result[0]
-            location = result['geometry']['location']
+            feature = data['features'][0]
+            geometry = feature['geometry']
+            properties = feature['properties']
 
             geocoded_data = {
-                'latitude': location['lat'],
-                'longitude': location['lng'],
-                'display_name': result['formatted_address'],
-                'place_id': result.get('place_id'),
+                'latitude': geometry['coordinates'][1],  # ORS returns [lon, lat]
+                'longitude': geometry['coordinates'][0],
+                'display_name': properties.get('label'),
+                'place_id': properties.get('id'),
+                'confidence': properties.get('confidence'),
+                'locality': properties.get('locality'),
+                'region': properties.get('region'),
+                'country': properties.get('country'),
             }
-
-            # Try to get place details if we have a place_id
-            if geocoded_data['place_id']:
-                try:
-                    place_details = self.client.place(
-                        place_id=geocoded_data['place_id'],
-                        fields=['name', 'types', 'rating']
-                    )
-
-                    if place_details and 'result' in place_details:
-                        details = place_details['result']
-                        geocoded_data.update({
-                            'place_name': details.get('name'),
-                            'place_types': details.get('types', []),
-                            'rating': details.get('rating'),
-                        })
-                except Exception as e:
-                    logger.warning(f"Failed to fetch place details: {e}")
 
             logger.info(f"Successfully geocoded: {full_address}")
             return geocoded_data
 
-        except googlemaps.exceptions.ApiError as e:
-            logger.error(f"Google Maps API error for '{full_address}': {e}")
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"OpenRouteService HTTP error for '{full_address}': {e}")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error during geocoding '{full_address}': {e}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error during geocoding '{full_address}': {e}")
@@ -136,9 +141,11 @@ class GeocodingService:
                 'longitude': geocoded.get('longitude'),
                 'display_name': geocoded.get('display_name'),
                 'place_id': geocoded.get('place_id'),
-                'place_name': geocoded.get('place_name'),
-                'place_types': geocoded.get('place_types'),
-                'rating': geocoded.get('rating'),
             })
 
         return event_data
+
+    def close(self):
+        """Close the session."""
+        if self.session:
+            self.session.close()

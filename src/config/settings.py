@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_RELOAD: bool = True
 
-    # Google Places API
-    GOOGLE_PLACES_API_KEY: str = ""
+    # OpenRouteService API (Geocoding)
+    OPENROUTESERVICE_API_KEY: str = ""
 
     # Scraping
     SCRAPING_DELAY: int = 2

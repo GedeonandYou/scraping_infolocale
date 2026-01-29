@@ -1,8 +1,9 @@
 """ScannedEvent model - Table principale pour les événements scrapés."""
 
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, Any
 from sqlalchemy import Column, ARRAY, String, Text, TIMESTAMP, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 
@@ -82,7 +83,10 @@ class ScannedEvent(SQLModel, table=True):
         default=None,
         sa_column=Column(ARRAY(Text))
     )
-    raw_json: Optional[dict] = Field(default=None)
+    raw_json: Optional[dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSONB)
+    )
 
     is_private: bool = Field(default=False, index=True)
 
