@@ -17,7 +17,7 @@ requests>=2.31.0
 selenium>=4.15.0
 
 # Geocoding
-googlemaps>=4.10.0
+# OpenRouteService - uses requests (already included above)
 
 # Task Scheduling
 apscheduler>=3.10.0
