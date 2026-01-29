@@ -1,28 +1,16 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import type { ScannedEvent } from "@/data/Events"
-import {
-  Calendar,
-  Clock,
-  Euro,
-  ExternalLink,
-  MapPin,
-  Music,
-  Tag,
-  User,
-} from "lucide-react"
+import { Calendar, Clock, Euro, ExternalLink, MapPin, Music, Tag, User } from "lucide-react"
 
 interface EventDetailSheetProps {
   event: ScannedEvent | null
   open: boolean
   onClose: () => void
+  loading?: boolean
+  error?: string | null
 }
 
 const categoryColors: Record<string, string> = {
@@ -44,8 +32,11 @@ const categoryColors: Record<string, string> = {
     "bg-gradient-to-r from-teal-100 to-teal-50 dark:from-teal-950/50 dark:to-teal-900/30 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800",
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("fr-FR", {
+function formatDate(dateString?: string | null): string {
+  if (!dateString) return "—"
+  const d = new Date(dateString)
+  if (Number.isNaN(d.getTime())) return "—"
+  return d.toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -57,167 +48,184 @@ export function EventDetailSheet({
   event,
   open,
   onClose,
+  loading = false,
+  error = null,
 }: EventDetailSheetProps) {
-  if (!event) return null
+  // ✅ tags safe (même si event null)
+  const tags: string[] = Array.isArray((event as any)?.tags) ? ((event as any).tags as string[]) : []
+  const artists: string[] = Array.isArray((event as any)?.artists) ? ((event as any).artists as string[]) : []
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-linear-to-b from-card via-card to-muted/5 p-5">
+    <Sheet
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onClose()
+      }}
+    >
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-gradient-to-b from-card via-card to-muted/5 p-5">
         <SheetHeader className="space-y-4 pb-6 border-b border-border">
           <div className="flex items-start justify-between gap-3">
-            <Badge
-              variant="outline"
-              className={categoryColors[event.category] || ""}
-            >
-              {event.category}
+            <Badge variant="outline" className={categoryColors[event?.category ?? ""] || ""}>
+              {event?.category || "—"}
             </Badge>
-            {/* <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
-              ID: {event.uid}
-            </span> */}
           </div>
+
           <SheetTitle className="text-2xl leading-tight text-left font-bold">
-            {event.title}
+            {event?.title || (loading ? "Chargement..." : "—")}
           </SheetTitle>
+
+          {error ? <p className="text-sm text-red-600">❌ {error}</p> : null}
+          {loading ? <p className="text-sm text-muted-foreground">⏳ Chargement des détails...</p> : null}
         </SheetHeader>
 
+        {/* contenu */}
         <div className="mt-6 space-y-6">
-          {/* Date & Time */}
-          <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
-            <div className="flex items-center gap-3 text-sm">
-              <div className="p-2 rounded bg-primary/10">
-                <Calendar className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold">{formatDate(event.beginDate)}</p>
-                {event.endDate && event.endDate !== event.beginDate && (
-                  <p className="text-xs text-muted-foreground">
-                    jusqu'au {formatDate(event.endDate)}
-                  </p>
+          {!event && !loading ? (
+            <p className="text-sm text-muted-foreground">Aucun détail à afficher.</p>
+          ) : null}
+
+          {event ? (
+            <>
+              {/* Date & Time */}
+              <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="p-2 rounded bg-primary/10">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{formatDate((event as any).beginDate)}</p>
+                    {(event as any).endDate && (event as any).endDate !== (event as any).beginDate && (
+                      <p className="text-xs text-muted-foreground">
+                        jusqu&apos;au {formatDate((event as any).endDate)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {(event as any).startTime && (
+                  <div className="flex items-center gap-3 text-sm mt-2">
+                    <div className="p-2 rounded bg-primary/10">
+                      <Clock className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="font-medium">
+                      {(event as any).startTime}
+                      {(event as any).endTime ? ` - ${(event as any).endTime}` : ""}
+                    </span>
+                  </div>
                 )}
               </div>
-            </div>
-            {event.startTime && (
-              <div className="flex items-center gap-3 text-sm mt-2">
-                <div className="p-2 rounded bg-primary/10">
-                  <Clock className="h-4 w-4 text-primary" />
+
+              <Separator />
+
+              {/* Location */}
+              <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
+                <div className="flex items-start gap-3 text-sm">
+                  <div className="p-2 rounded bg-primary/10 shrink-0">
+                    <MapPin className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold">{(event as any).locationName || "—"}</p>
+                    {(event as any).address ? (
+                      <p className="text-sm text-muted-foreground mt-1">{(event as any).address}</p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {[(event as any).zipcode, (event as any).city, (event as any).state]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </p>
+                  </div>
                 </div>
-                <span className="font-medium">
-                  {event.startTime}
-                  {event.endTime && ` - ${event.endTime}`}
-                </span>
               </div>
-            )}
-          </div>
 
-          <Separator />
+              <Separator />
 
-          {/* Location */}
-          <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
-            <div className="flex items-start gap-3 text-sm">
-              <div className="p-2 rounded bg-primary/10 shrink-0">
-                <MapPin className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">{event.locationName}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {event.address}
+              {/* Description */}
+              <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
+                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <span className="inline-block w-1 h-4 bg-primary rounded-full" />
+                  Description
+                </h4>
+                <p className="text-sm leading-relaxed text-foreground">
+                  {event.description || "—"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {event.zipcode} {event.city}, {event.state}
-                </p>
-                {event.latitude && event.longitude && (
-                  <p className="text-xs text-muted-foreground mt-2 font-mono bg-muted/40 p-1.5 rounded inline-block">
-                    📍 {event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}
-                  </p>
-                )}
               </div>
-            </div>
-          </div>
 
-          <Separator />
+              <Separator />
 
-          {/* Description */}
-          <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <span className="inline-block w-1 h-4 bg-primary rounded-full"></span>
-              Description
-            </h4>
-            <p className="text-sm leading-relaxed text-foreground">
-              {event.description}
-            </p>
-          </div>
-
-          <Separator />
-
-          {/* Details */}
-          <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
-            <div className="flex items-center gap-3 text-sm">
-              <div className="p-2 rounded bg-primary/10">
-                <User className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Organisateur</p>
-                <p className="font-medium">{event.organizer}</p>
-              </div>
-            </div>
-            {event.pricing && (
-              <div className="flex items-center gap-3 text-sm">
-                <div className="p-2 rounded bg-primary/10">
-                  <Euro className="h-4 w-4 text-primary" />
+              {/* Details */}
+              <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="p-2 rounded bg-primary/10">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Organisateur</p>
+                    <p className="font-medium">{event.organizer || "—"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tarif</p>
-                  <p className="font-medium">{event.pricing}</p>
+
+                {(event as any).pricing ? (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="p-2 rounded bg-primary/10">
+                      <Euro className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tarif</p>
+                      <p className="font-medium">{(event as any).pricing}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {artists.length > 0 ? (
+                  <div className="flex items-start gap-3 text-sm">
+                    <div className="p-2 rounded bg-primary/10 shrink-0">
+                      <Music className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Artistes</p>
+                      <p className="font-medium">{artists.join(", ")}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <Separator />
+
+              {/* Tags ✅ */}
+              <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded bg-primary/10">
+                    <Tag className="h-4 w-4 text-primary" />
+                  </div>
+                  <h4 className="text-sm font-semibold">Tags</h4>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {tags.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ) : (
+                    tags.map((tag: string) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/20"
+                      >
+                        #{tag}
+                      </Badge>
+                    ))
+                  )}
                 </div>
               </div>
-            )}
-            {event.artists && event.artists.length > 0 && (
-              <div className="flex items-start gap-3 text-sm">
-                <div className="p-2 rounded bg-primary/10 shrink-0">
-                  <Music className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Artistes</p>
-                  <p className="font-medium">{event.artists.join(", ")}</p>
-                </div>
-              </div>
-            )}
-          </div>
 
-          <Separator />
-
-          {/* Tags */}
-          <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-1.5 rounded bg-primary/10">
-                <Tag className="h-4 w-4 text-primary" />
-              </div>
-              <h4 className="text-sm font-semibold">Tags</h4>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {event.tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/20"
-                >
-                  #{tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Actions */}
-          {event.website && (
-            <Button
-              className="w-full bg-linear-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold h-10 rounded-lg transition-all"
-              onClick={() => window.open(event.website, "_blank")}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Voir le site officiel
-            </Button>
-          )}
-          
+              {/* Action */}
+              {(event as any).website ? (
+                <Button className="w-full font-semibold h-10 rounded-lg" onClick={() => window.open((event as any).website, "_blank")}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Voir le site officiel
+                </Button>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
