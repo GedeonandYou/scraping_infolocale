@@ -33,6 +33,15 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
+  # Redis - Geocoding cache
+  redis:
+    image: redis:7-alpine
+    container_name: infolocale_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - infolocale_network
+
   # FastAPI Application (commenté - à utiliser si besoin)
   # api:
   #   build:
@@ -63,4 +72,6 @@ networks:
 
 volumes:
   postgres_data:
-    driver: local
+    # driver: local
+    external: true
+    name: scraping_infolocale_postgres_data
