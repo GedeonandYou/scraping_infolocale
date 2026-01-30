@@ -8,26 +8,15 @@ Système complet de scraping et d'API REST pour collecter et exposer les événe
 cp .env.example .env
 ```
 
-Éditer le fichier `.env` :
-
 ```env
-# Database
-POSTGRES_USER=infolocale_user
-POSTGRES_PASSWORD=votre_mot_de_passe_securise
-POSTGRES_DB=infolocale_db
 
-# Google Places API
-GOOGLE_PLACES_API_KEY=votre_cle_api_google
-
-# Scraping
-SCRAPING_DELAY=2
-SCRAPING_USER_AGENT=InfoLocaleScraper/1.0 (Educational Project; contact@example.com)
 ```
 
 ### 3. Démarrage avec Docker Compose
 
 ```bash
 docker-compose up -d
+J'ai encore commenter le API dans docker compose, donc il vas falloir le lancer en localhost
 ```
 
 Services disponibles :
