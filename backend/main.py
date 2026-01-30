@@ -1,5 +1,7 @@
 """Main CLI entry point for the scraper."""
 
+from typing import Optional
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -13,6 +15,7 @@ from src.exporters.json_exporter import JSONExporter
 from src.models.database import engine, create_db_and_tables
 from src.models.scanned_event import ScannedEvent
 from src.utils.logger import setup_logger
+from src.config.settings import get_settings
 
 app = typer.Typer(help="Infolocale Scraper CLI")
 console = Console()
@@ -61,18 +64,29 @@ def scrape(
     region: str = typer.Option(None, help="Région à scraper"),
     max_pages: int = typer.Option(5, help="Nombre maximum de pages à scraper"),
     geocode: bool = typer.Option(True, help="Activer le géocodage"),
+    parallel_pages: Optional[bool] = typer.Option(
+        None,
+        "--parallel-pages/--no-parallel-pages",
+        help="Activer le scraping multi-pages en parallèle",
+    ),
+    max_workers: Optional[int] = typer.Option(None, help="Nombre de drivers parallèles"),
 ):
     """Lancer le scraping HTML des événements (alternative à Open Data)."""
     console.print(f"[bold blue]Démarrage du scraping (max_pages={max_pages})...[/bold blue]")
     console.print("[yellow]💡 Tip: Utilisez plutôt 'import-opendata' pour des données officielles![/yellow]\n")
 
     scraper = ScraperService()
+    settings = get_settings()
 
     try:
         saved_count = scraper.scrape_and_store(
             region=region,
             max_pages=max_pages,
-            with_geocoding=geocode
+            with_geocoding=geocode,
+            parallel_pages=parallel_pages
+            if parallel_pages is not None
+            else settings.SCRAPING_PARALLEL_PAGES,
+            max_workers=max_workers,
         )
 
         console.print(f"[bold green]✓ Scraping terminé: {saved_count} événements sauvegardés[/bold green]")
@@ -184,7 +198,6 @@ def serve(
 ):
     """Lancer l'API FastAPI."""
     import uvicorn
-    from src.config.settings import get_settings
 
     settings = get_settings()
 
