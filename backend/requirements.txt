@@ -26,6 +26,7 @@ apscheduler>=3.10.0
 python-dotenv>=1.0.0
 loguru>=0.7.0
 tenacity>=8.2.0
+redis>=5.0.0
 
 # Export
 pandas>=2.0.0

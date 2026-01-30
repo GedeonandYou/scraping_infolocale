@@ -23,6 +23,7 @@ Services disponibles :
 
 - **PostgreSQL** : `localhost:5432`
 - **Adminer** (UI DB) : http://localhost:8080
+- **Redis** (cache géocodage) : `localhost:6379`
 - **API FastAPI** : http://localhost:8000
 - **Documentation Swagger** : http://localhost:8000/docs
 
@@ -42,6 +43,7 @@ pip install -r requirements.txt
 ### Variables d'environnement
 
 Voir [.env.example](.env.example) pour la liste complète des variables configurables.
+Pour le scraping par région, ajuster `SCRAPING_REGION_URL_TEMPLATE` si besoin (ex: `"{base_url}/evenements?location={region}"`).
 
 ## 💻 Utilisation
 
@@ -55,6 +57,8 @@ python main.py init-db
 python main.py scrape --max-pages 10 --geocode
 # Lancer le scraping avec le geocode
 python main.py scrape --max-pages 10
+# Scraping parallel et multi-régions (séparées par des virgules)
+python main.py scrape --parallel-pages --max-workers 3 --region "region-slug-1, region-slug-2"
 
 # Exporter les données
 python main.py export --format json
