@@ -2,7 +2,6 @@
 
 from typing import Generator
 from sqlmodel import create_engine, Session, SQLModel
-from sqlalchemy import event, Index
 from src.config.settings import get_settings
 
 settings = get_settings()
@@ -18,21 +17,13 @@ engine = create_engine(
 
 
 def create_db_and_tables():
-    """Create all tables in the database."""
+    """
+    Create all tables in the database.
+
+    Note: Les index sont déjà définis dans les modèles SQLModel avec le paramètre index=True
+    et dans le script SQL docker/init.sql pour PostgreSQL.
+    """
     SQLModel.metadata.create_all(engine)
-
-    # Create indexes after table creation
-    with Session(engine) as session:
-        # Index sur user_id
-        Index('idx_scanned_events_user', 'user_id').create(engine, checkfirst=True)
-
-        # Index sur is_private
-        Index('idx_scanned_events_private', 'is_private').create(engine, checkfirst=True)
-
-        # Index composite sur latitude et longitude
-        Index('idx_scanned_events_coords', 'latitude', 'longitude').create(engine, checkfirst=True)
-
-        session.commit()
 
 
 def get_session() -> Generator[Session, None, None]:

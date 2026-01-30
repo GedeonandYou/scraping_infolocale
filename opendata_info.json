@@ -1,0 +1,242 @@
+{
+  "access_audiences": [],
+  "access_type": "open",
+  "access_type_reason": null,
+  "access_type_reason_category": null,
+  "acronym": null,
+  "archived": null,
+  "authorization_request_url": null,
+  "badges": [],
+  "contact_points": [],
+  "created_at": "2013-12-30T15:29:25.995000+00:00",
+  "deleted": null,
+  "description": "Le jeu de données contient les annonces d’événements loisirs et pratiques saisies par les organismes inscrits sur Infolocale. Il est mis à jour quotidiennement.",
+  "description_short": null,
+  "extras": {
+    "datagouv_ckan_id": "04e1d17d-b96f-4943-8030-d1b9ec63f44f",
+    "datagouv_ckan_last_sync": "2014-09-17T03:37:37.171000"
+  },
+  "featured": false,
+  "frequency": "semiannual",
+  "frequency_date": "2016-04-09T08:53:45+00:00",
+  "harvest": null,
+  "id": "53698e85a3a729239d2034b2",
+  "internal": {
+    "created_at_internal": "2013-12-30T15:29:25.995000+00:00",
+    "last_modified_internal": "2016-07-26T17:02:20.492000+00:00"
+  },
+  "last_modified": "2016-07-26T17:02:20.492000+00:00",
+  "last_update": "2016-07-26T17:02:20.492000+00:00",
+  "license": "odc-odbl",
+  "metrics": {
+    "dataservices": 0,
+    "discussions": 0,
+    "discussions_open": 0,
+    "followers": 0,
+    "followers_by_months": {
+      "2024-08": 0,
+      "2024-09": 0,
+      "2024-10": 0,
+      "2024-11": 0,
+      "2024-12": 0,
+      "2025-01": 0,
+      "2025-02": 0,
+      "2025-03": 0,
+      "2025-04": 0,
+      "2025-05": 0,
+      "2025-06": 0,
+      "2025-07": 0,
+      "2025-08": 0
+    },
+    "resources_downloads": 1415,
+    "reuses": 2,
+    "reuses_by_months": {
+      "2024-08": 0,
+      "2024-09": 0,
+      "2024-10": 0,
+      "2024-11": 0,
+      "2024-12": 0,
+      "2025-01": 0,
+      "2025-02": 0,
+      "2025-03": 0,
+      "2025-04": 0,
+      "2025-05": 0,
+      "2025-06": 0,
+      "2025-07": 0,
+      "2025-08": 0
+    },
+    "views": 4311
+  },
+  "organization": {
+    "acronym": null,
+    "badges": [],
+    "class": "Organization",
+    "id": "534fff7ea3a7292c64a77e36",
+    "logo": "https://static.data.gouv.fr/avatars/b2/be284ab67e425d8bca1660f8251621-original.png",
+    "logo_thumbnail": "https://static.data.gouv.fr/avatars/b2/be284ab67e425d8bca1660f8251621-100.png",
+    "name": "Infolocale",
+    "page": "https://www.data.gouv.fr/organizations/infolocale",
+    "slug": "infolocale",
+    "uri": "https://www.data.gouv.fr/api/1/organizations/infolocale/"
+  },
+  "owner": null,
+  "page": "https://www.data.gouv.fr/datasets/donnees-evenementielles-infolocale",
+  "permissions": {
+    "delete": false,
+    "edit": false,
+    "edit_resources": false
+  },
+  "private": false,
+  "quality": {
+    "all_resources_available": false,
+    "dataset_description_quality": false,
+    "has_open_format": true,
+    "has_resources": true,
+    "license": true,
+    "resources_documentation": true,
+    "score": 0.6666666666666666,
+    "spatial": true,
+    "temporal_coverage": true,
+    "update_frequency": true,
+    "update_fulfilled_in_time": false
+  },
+  "resources": [
+    {
+      "checksum": null,
+      "created_at": "2015-05-13T15:14:57.570000+00:00",
+      "description": "Le jeu de données contient les annonces d’événements loisirs et pratiques saisies par les organismes inscrits sur Infolocale.",
+      "extras": {
+        "check:available": false,
+        "check:count-availability": 141,
+        "check:date": "2025-04-30T12:05:18.876243+00:00",
+        "check:error": "Not Found",
+        "check:headers:content-type": "text/html",
+        "check:status": 404,
+        "check:timeout": false,
+        "check:url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+      },
+      "filesize": null,
+      "filetype": "remote",
+      "format": "excel",
+      "harvest": null,
+      "id": "f0898892-f20b-4cc0-a4c7-0ea2e0b9fdb1",
+      "internal": {
+        "created_at_internal": "2015-05-13T15:14:57.570000+00:00",
+        "last_modified_internal": "2016-07-26T17:02:09.115000+00:00"
+      },
+      "last_modified": "2016-07-26T17:02:09.115000+00:00",
+      "latest": "https://www.data.gouv.fr/api/1/datasets/r/f0898892-f20b-4cc0-a4c7-0ea2e0b9fdb1",
+      "metrics": {
+        "nb_hits": 0,
+        "nb_uniq_visitors": 0,
+        "nb_visits": 0,
+        "views": 422
+      },
+      "mime": null,
+      "preview_url": null,
+      "schema": null,
+      "title": "Données événementielles Infolocale",
+      "type": "api",
+      "url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+    },
+    {
+      "checksum": null,
+      "created_at": "2015-05-13T15:14:10.514000+00:00",
+      "description": "Le jeu de données contient les annonces d’événements loisirs et pratiques saisies par les organismes inscrits sur Infolocale.",
+      "extras": {
+        "check:available": false,
+        "check:count-availability": 139,
+        "check:date": "2025-04-29T15:26:45.492398+00:00",
+        "check:error": "Not Found",
+        "check:headers:content-type": "text/html",
+        "check:status": 404,
+        "check:timeout": false,
+        "check:url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+      },
+      "filesize": null,
+      "filetype": "remote",
+      "format": "csv",
+      "harvest": null,
+      "id": "6d24013f-176a-41a2-ba32-61d47252ef91",
+      "internal": {
+        "created_at_internal": "2015-05-13T15:14:10.514000+00:00",
+        "last_modified_internal": "2016-07-26T17:02:15.387000+00:00"
+      },
+      "last_modified": "2016-07-26T17:02:15.387000+00:00",
+      "latest": "https://www.data.gouv.fr/api/1/datasets/r/6d24013f-176a-41a2-ba32-61d47252ef91",
+      "metrics": {
+        "nb_hits": 0,
+        "nb_uniq_visitors": 0,
+        "nb_visits": 0,
+        "views": 590
+      },
+      "mime": null,
+      "preview_url": null,
+      "schema": null,
+      "title": "Données événementielles Infolocale",
+      "type": "api",
+      "url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+    },
+    {
+      "checksum": null,
+      "created_at": "2015-04-03T10:07:20.425000+00:00",
+      "description": "Le jeu de données contient les annonces d’événements loisirs et pratiques saisies par les organismes inscrits sur Infolocale. ",
+      "extras": {
+        "check:available": false,
+        "check:count-availability": 139,
+        "check:date": "2025-04-29T18:26:01.419316+00:00",
+        "check:error": "Not Found",
+        "check:headers:content-type": "text/html",
+        "check:status": 404,
+        "check:timeout": false,
+        "check:url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+      },
+      "filesize": null,
+      "filetype": "remote",
+      "format": "json",
+      "harvest": null,
+      "id": "62b91454-871e-4fa2-b42b-8b4db04f9647",
+      "internal": {
+        "created_at_internal": "2015-04-03T10:07:20.425000+00:00",
+        "last_modified_internal": "2016-07-26T17:02:20.492000+00:00"
+      },
+      "last_modified": "2016-07-26T17:02:20.492000+00:00",
+      "latest": "https://www.data.gouv.fr/api/1/datasets/r/62b91454-871e-4fa2-b42b-8b4db04f9647",
+      "metrics": {
+        "nb_hits": 0,
+        "nb_uniq_visitors": 0,
+        "nb_visits": 0,
+        "views": 459
+      },
+      "mime": null,
+      "preview_url": null,
+      "schema": null,
+      "title": "Données événementielles Infolocale",
+      "type": "api",
+      "url": "http://datainfolocale.opendatasoft.com/explore/dataset/agenda_culturel"
+    }
+  ],
+  "schema": null,
+  "slug": "donnees-evenementielles-infolocale",
+  "spatial": {
+    "geom": null,
+    "granularity": "fr:commune",
+    "zones": [
+      "country:fr"
+    ]
+  },
+  "tags": [
+    "agenda",
+    "concert",
+    "culture",
+    "expositions",
+    "opendata",
+    "spectacle"
+  ],
+  "temporal_coverage": {
+    "end": "2020-01-01",
+    "start": "2014-10-01"
+  },
+  "title": "Données événementielles Infolocale",
+  "uri": "https://www.data.gouv.fr/api/1/datasets/donnees-evenementielles-infolocale/"
+}

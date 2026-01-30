@@ -29,6 +29,7 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
@@ -75,3 +76,6 @@ alembic/versions/*.pyc
 # Temporary files
 *.tmp
 temp/
+
+# Development & Documentation (personal use only)
+info-dev/
