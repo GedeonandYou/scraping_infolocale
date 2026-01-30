@@ -2,6 +2,8 @@
 
 from typing import Optional, Dict, Any
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -14,17 +16,32 @@ class GeocodingService:
     """Service to geocode addresses and enrich location data with OpenRouteService API."""
 
     def __init__(self):
-        """Initialize OpenRouteService client."""
+        """Initialize OpenRouteService client with connection pooling."""
         self.api_key = settings.OPENROUTESERVICE_API_KEY
         self.base_url = "https://api.openrouteservice.org/geocode"
         self.session = requests.Session()
+
+        # Configure connection pool for better performance
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"]
+        )
+        adapter = HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=retry_strategy
+        )
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
 
         if self.api_key:
             self.session.headers.update({
                 'Authorization': self.api_key,
                 'Content-Type': 'application/json'
             })
-            logger.info("OpenRouteService client initialized successfully")
+            logger.info("OpenRouteService client initialized with connection pooling")
         else:
             logger.warning("OpenRouteService API key not configured")
 

@@ -1,21 +1,25 @@
 """Service for scraping events from Infolocale.fr with Selenium - REAL IMPLEMENTATION."""
 
-import time
 import hashlib
+import time
 import os
 import re
 import unicodedata
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, date, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse, quote_plus
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from loguru import logger
 
 from src.config.settings import get_settings
-from src.services.geocoding_service import GeocodingService
+from src.services.async_geocoding_service import AsyncGeocodingService
 from src.services.storage_service import StorageService
 
 settings = get_settings()
@@ -28,13 +32,13 @@ class ScraperService:
 
     def __init__(self):
         """Initialize scraper service with Selenium."""
-        self.geocoding_service = GeocodingService()
+        self.geocoding_service = AsyncGeocodingService()
         self.storage_service = StorageService()
         self.driver = None
         self.existing_uids = set()
 
-    def _init_driver(self):
-        """Initialize Chrome WebDriver."""
+    def _build_driver(self):
+        """Build a Chrome WebDriver with performance optimizations."""
         chrome_options = Options()
         chrome_options.add_argument('--headless')  # Mode sans interface
         chrome_options.add_argument('--no-sandbox')
@@ -42,12 +46,37 @@ class ScraperService:
         chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument(f'user-agent={settings.SCRAPING_USER_AGENT}')
 
+        # Performance optimizations
+        chrome_options.add_argument('--disable-images')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--blink-settings=imagesEnabled=false')
+        chrome_options.page_load_strategy = 'eager'  # Don't wait for full page load
+
+        # Additional performance
+        prefs = {
+            'profile.managed_default_content_settings.images': 2,
+            'profile.default_content_setting_values.notifications': 2,
+            'profile.managed_default_content_settings.stylesheets': 2,
+            'profile.managed_default_content_settings.cookies': 1,
+            'profile.managed_default_content_settings.javascript': 1,
+            'profile.managed_default_content_settings.plugins': 2,
+            'profile.managed_default_content_settings.popups': 2,
+            'profile.managed_default_content_settings.geolocation': 2,
+            'profile.managed_default_content_settings.media_stream': 2,
+        }
+        chrome_options.add_experimental_option('prefs', prefs)
+
         # Chemin vers le ChromeDriver local
         chromedriver_path = os.path.join(os.getcwd(), 'chromedriver')
 
         service = Service(executable_path=chromedriver_path)
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        logger.info("Chrome WebDriver initialized")
+        return webdriver.Chrome(service=service, options=chrome_options)
+
+    def _init_driver(self):
+        """Initialize Chrome WebDriver with performance optimizations."""
+        self.driver = self._build_driver()
+        logger.info("Chrome WebDriver initialized with performance optimizations")
 
     def _generate_uid(self, data_id: str) -> str:
         """
@@ -367,9 +396,86 @@ class ScraperService:
 
         return start_time, end_time
 
-    def _fetch_page(self, url: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _append_page_param(url: str, page: int) -> str:
+        """Append or replace the page query parameter."""
+        if page <= 1:
+            return url
+        parsed = urlparse(url)
+        query = dict(parse_qsl(parsed.query))
+        query["page"] = str(page)
+        new_query = urlencode(query)
+        return urlunparse(parsed._replace(query=new_query))
+
+    @staticmethod
+    def _split_regions(region: Optional[str]) -> List[str]:
+        if not region:
+            return []
+        return [token.strip() for token in region.split(",") if token.strip()]
+
+    def _build_region_base_url(self, region: Optional[str]) -> str:
+        """Build the base URL for a region (slug, path, or full URL)."""
+        if not region:
+            return f"{self.BASE_URL}/evenements"
+        region = region.strip()
+        if region.startswith("http://") or region.startswith("https://"):
+            return region.rstrip("/")
+        if region.startswith("/"):
+            return f"{self.BASE_URL}{region}"
+        template = settings.SCRAPING_REGION_URL_TEMPLATE
+        return template.format(base_url=self.BASE_URL, region=quote_plus(region))
+
+    @staticmethod
+    def _dedupe_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove duplicate events by uid while preserving first occurrence."""
+        unique: Dict[str, Dict[str, Any]] = {}
+        for event in events:
+            uid = event.get("uid")
+            if not uid:
+                continue
+            if uid not in unique:
+                unique[uid] = event
+        return list(unique.values())
+
+    def _scrape_url_chunk(self, urls: List[str]) -> List[Dict[str, Any]]:
+        """Scrape a list of URLs using a dedicated WebDriver instance."""
+        if not urls:
+            return []
+        driver = self._build_driver()
+        try:
+            events: List[Dict[str, Any]] = []
+            for url in urls:
+                page_events = self._fetch_page(url, driver)
+                if page_events is None:
+                    break
+                if page_events:
+                    events.extend(page_events)
+            return events
+        finally:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+    def _scrape_urls_parallel(self, urls: List[str], max_workers: int) -> List[Dict[str, Any]]:
+        """Scrape multiple pages in parallel using multiple drivers."""
+        if not urls:
+            return []
+        max_workers = max(1, max_workers)
+        chunks = [urls[i::max_workers] for i in range(max_workers)]
+        events: List[Dict[str, Any]] = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(self._scrape_url_chunk, chunk) for chunk in chunks if chunk]
+            for future in as_completed(futures):
+                try:
+                    events.extend(future.result() or [])
+                except Exception as e:
+                    logger.error(f"Error in parallel scrape worker: {e}")
+        return events
+
+    def _fetch_page(self, url: str, driver: Optional[webdriver.Chrome] = None) -> Optional[List[Dict[str, Any]]]:
         """
-        Fetch and parse a page with Selenium.
+        Fetch and parse a page with Selenium using smart waits.
 
         Args:
             url: URL to scrape
@@ -380,29 +486,41 @@ class ScraperService:
         logger.info(f"Fetching: {url}")
 
         try:
-            self.driver.get(url)
+            driver = driver or self.driver
+            if not driver:
+                raise RuntimeError("WebDriver not initialized")
 
-            # Attendre que le JavaScript charge le contenu
-            time.sleep(5)
+            driver.get(url)
 
-            # Scroll pour charger plus de contenu
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
+            # Wait for event cards to load (smart wait instead of sleep)
+            wait = WebDriverWait(driver, 15)
+            try:
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.memo-card')))
+                logger.debug("Event cards loaded")
+            except:
+                logger.warning("No event cards found after 15s wait")
+                return None
 
-            # Récupérer le HTML
-            html = self.driver.page_source
+            # Scroll to load lazy content
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-            # Parser
+            # Wait for any lazy-loaded cards (shorter wait)
+            time.sleep(1)
+
+            # Get HTML
+            html = driver.page_source
+
+            # Parse
             soup = BeautifulSoup(html, 'lxml')
 
-            # Extraire les cartes d'événements
+            # Extract event cards
             cards = soup.select('.memo-card')
             logger.info(f"Found {len(cards)} event cards")
 
-            # Si aucune carte HTML, la page est vide
+            # If no HTML cards, page is empty
             if len(cards) == 0:
                 logger.warning(f"No event cards found (page might be empty)")
-                return None  # Signal qu'il faut arrêter
+                return None  # Signal to stop
 
             events = []
             for card in cards:
@@ -414,11 +532,8 @@ class ScraperService:
                     logger.error(f"Error processing card: {e}")
                     continue
 
-            # Log : Nouveaux vs déjà existants
+            # Log: New vs already existing
             logger.info(f"Parsed {len(events)} new events (out of {len(cards)} cards)")
-
-            # Respecter le rate limiting
-            time.sleep(settings.SCRAPING_DELAY)
 
             return events
 
@@ -429,22 +544,28 @@ class ScraperService:
     def scrape_events(
         self,
         region: Optional[str] = None,
-        max_pages: int = 5
+        max_pages: int = 5,
+        parallel_pages: Optional[bool] = None,
+        max_workers: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Scrape events with pagination.
 
         Args:
-            region: Region to filter (not implemented yet)
+            region: Region slug/path/URL (comma-separated for multiple)
             max_pages: Maximum number of pages to scrape
+            parallel_pages: Enable parallel page scraping
+            max_workers: Max parallel drivers
 
         Returns:
             List of event dictionaries
         """
-        logger.info(f"Starting scraping process (max_pages={max_pages})")
+        parallel_pages = settings.SCRAPING_PARALLEL_PAGES if parallel_pages is None else parallel_pages
+        max_workers = max_workers or settings.SCRAPING_MAX_WORKERS
 
-        # Initialiser Selenium
-        self._init_driver()
+        logger.info(
+            f"Starting scraping process (max_pages={max_pages}, parallel_pages={parallel_pages})"
+        )
 
         # Charger UIDs existants
         self.existing_uids = self.storage_service.get_all_uids()
@@ -452,34 +573,43 @@ class ScraperService:
 
         all_events = []
 
-        try:
-            # URL de base
-            base_url = f"{self.BASE_URL}/evenements"
+        region_tokens = self._split_regions(region) or [None]
 
-            for page in range(1, max_pages + 1):
-                # Pagination (à adapter selon le site)
-                url = base_url if page == 1 else f"{base_url}?page={page}"
+        if parallel_pages and max_pages > 1:
+            urls: List[str] = []
+            for token in region_tokens:
+                base_url = self._build_region_base_url(token)
+                for page in range(1, max_pages + 1):
+                    urls.append(self._append_page_param(base_url, page))
+            all_events = self._scrape_urls_parallel(urls, max_workers)
+        else:
+            # Initialiser Selenium (single driver)
+            self._init_driver()
+            try:
+                for token in region_tokens:
+                    base_url = self._build_region_base_url(token)
+                    for page in range(1, max_pages + 1):
+                        url = self._append_page_param(base_url, page)
+                        events = self._fetch_page(url, self.driver)
 
-                events = self._fetch_page(url)
+                        # Si None, la page est vide (aucune carte HTML) → arrêter
+                        if events is None:
+                            logger.info(f"No event cards on page {page}, stopping")
+                            break
 
-                # Si None, la page est vide (aucune carte HTML) → arrêter
-                if events is None:
-                    logger.info(f"No event cards on page {page}, stopping")
-                    break
+                        # Si liste vide, tous les événements existent déjà → continuer
+                        if len(events) == 0:
+                            logger.info(f"Page {page}: 0 new events (all duplicates), continuing...")
+                            continue
 
-                # Si liste vide, tous les événements existent déjà → continuer
-                if len(events) == 0:
-                    logger.info(f"Page {page}: 0 new events (all duplicates), continuing...")
-                    continue
+                        all_events.extend(events)
+                        logger.info(f"Page {page}: {len(events)} new events collected")
+            finally:
+                if self.driver:
+                    self.driver.quit()
+                    logger.info("WebDriver closed")
 
-                all_events.extend(events)
-                logger.info(f"Page {page}: {len(events)} new events collected")
-
-        finally:
-            if self.driver:
-                self.driver.quit()
-                logger.info("WebDriver closed")
-
+        all_events = self._dedupe_events(all_events)
         logger.info(f"Scraping completed: {len(all_events)} events collected")
         return all_events
 
@@ -487,20 +617,29 @@ class ScraperService:
         self,
         region: Optional[str] = None,
         max_pages: int = 5,
-        with_geocoding: bool = True
+        with_geocoding: bool = True,
+        parallel_pages: Optional[bool] = None,
+        max_workers: Optional[int] = None,
     ) -> int:
         """
         Scrape events and store them in database.
 
         Args:
-            region: Region to filter
+            region: Region slug/path/URL (comma-separated for multiple)
             max_pages: Maximum number of pages
             with_geocoding: Enable geocoding
+            parallel_pages: Enable parallel page scraping
+            max_workers: Max parallel drivers
 
         Returns:
             Number of events saved
         """
-        events = self.scrape_events(region=region, max_pages=max_pages)
+        events = self.scrape_events(
+            region=region,
+            max_pages=max_pages,
+            parallel_pages=parallel_pages,
+            max_workers=max_workers,
+        )
 
         if not events:
             logger.warning("No events to store")
@@ -508,16 +647,15 @@ class ScraperService:
 
         # Geocodage (optionnel)
         if with_geocoding and self.geocoding_service.api_key:
-            logger.info("Starting geocoding process...")
-            for i, event in enumerate(events, 1):
-                try:
-                    self.geocoding_service.geocode_event(event)
-                    # Pause pour respecter le rate limit (40 req/min = 1.5 sec entre chaque)
-                    if i < len(events):  # Pas de pause après le dernier
-                        time.sleep(2)  # 2 secondes = 30 req/min (sécurité)
-                        logger.debug(f"Geocoded {i}/{len(events)} events")
-                except Exception as e:
-                    logger.error(f"Error geocoding event {event.get('uid')}: {e}")
+            logger.info("Starting async geocoding process...")
+            try:
+                events = self.geocoding_service.geocode_events_sync(
+                    events,
+                    batch_size=settings.GEOCODING_BATCH_SIZE,
+                    delay_between_batches=settings.GEOCODING_BATCH_DELAY,
+                )
+            except Exception as e:
+                logger.error(f"Error during async geocoding: {e}")
 
         # Stocker en batch
         saved_count = self.storage_service.save_events_batch(events)
