@@ -9,10 +9,10 @@ Ce projet automatise la collecte d'événements locaux depuis Infolocale et expo
 ## ⚡ Démarrage rapide
 
 # 1. Cloner le projet
-
+```bash
 git clone `<repo-url>`
 cd scraping_infolocale
-
+```
 ## 🛠️ Technologies
 
 - **Backend**: FastAPI (Python 3.11)
@@ -26,7 +26,7 @@ cd scraping_infolocale
 
 ```bash
 # Backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python main.py api
