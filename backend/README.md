@@ -1,60 +1,92 @@
-# Infolocale Scraper
+# Infolocale Scraper (Backend)
 
-Système complet de scraping et d'API REST pour collecter et exposer les événements du site [infolocale.fr](https://www.infolocale.fr).
+Système de scraping + API REST pour collecter et exposer les événements du site [infolocale.fr](https://www.infolocale.fr).
 
-### 2. Configuration de l'environnement
+## Sommaire
+
+- **[Prérequis](#prérequis)**
+- **[Installation (local)](#installation-local)**
+- **[Configuration](#configuration)**
+- **[Démarrage avec Docker Compose](#démarrage-avec-docker-compose)**
+- **[Démarrage en local (sans Docker)](#démarrage-en-local-sans-docker)**
+- **[Services et URLs](#services-et-urls)**
+- **[CLI (scraper, export, stats)](#cli-scraper-export-stats)**
+- **[API REST](#api-rest)**
+- **[Tests](#tests)**
+- **[Dépannage](#dépannage)**
+
+## Prérequis
+
+- Python 3.11+
+- Docker et Docker Compose (optionnel, recommandé)
+
+## Installation (local)
+
+```bash
+# 1) Cloner le dépôt (si besoin)
+# git clone <repo> && cd backend
+
+# 2) Créer un environnement virtuel
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou
+# venv\Scripts\activate  # Windows
+
+# 3) Installer les dépendances
+pip install -r requirements.txt
+```
+
+## Configuration
+
+Copier l'exemple d'environnement et ajuster les variables selon vos besoins :
 
 ```bash
 cp .env.example .env
 ```
 
-```env
+Voir `backend/.env.example` pour la liste complète des variables (DB, logs, etc.).
 
-```
-
-### 3. Démarrage avec Docker Compose
+## Démarrage avec Docker Compose
 
 ```bash
-docker-compose up -d
-J'ai encore commenter le API dans docker compose, donc il vas falloir le lancer en localhost
+# Démarre la base PostgreSQL et Adminer
+# (si l'API est commentée dans docker-compose.yml, elle ne sera pas lancée)
+docker compose up -d
 ```
 
-Services disponibles :
+Si l'API FastAPI est commentée dans `backend/docker-compose.yml`, lancez-la en local (voir section suivante) tout en gardant PostgreSQL sous Docker.
 
-- **PostgreSQL** : `localhost:5432`
-- **Adminer** (UI DB) : http://localhost:8080
-- **API FastAPI** : http://localhost:8000
-- **Documentation Swagger** : http://localhost:8000/docs
-
-### 4. Installation locale (alternative)
+## Démarrage en local (sans Docker)
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
+# Lancer l'API (rechargement auto)
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
-pip install -r requirements.txt
+# Ou via le CLI
+python main.py serve --host 0.0.0.0 --port 8000
 ```
 
-## ⚙️ Configuration
+Assurez-vous que les variables d'environnement (notamment la connexion Postgres) correspondent à votre setup (Docker ou local).
 
-### Variables d'environnement
+## Services et URLs
 
-Voir [.env.example](.env.example) pour la liste complète des variables configurables.
+- **PostgreSQL**: `localhost:5432`
+- **Adminer (UI DB)**: http://localhost:8080
+- **API FastAPI**: http://localhost:8000
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-## 💻 Utilisation
-
-### Interface CLI
+## CLI (scraper, export, stats)
 
 ```bash
 # Initialiser la base de données
 python main.py init-db
 
-# Lancer le scraping sans le geocode
-python main.py scrape --max-pages 10 --geocode
-# Lancer le scraping avec le geocode
+# Lancer le scraping (sans géocodage)
 python main.py scrape --max-pages 10
+
+# Lancer le scraping (avec géocodage)
+python main.py scrape --max-pages 10 --geocode
 
 # Exporter les données
 python main.py export --format json
@@ -68,29 +100,22 @@ python main.py stats
 python main.py serve --host 0.0.0.0 --port 8000
 ```
 
-### API REST
+## API REST
+
+### Démarrage de l'API
 
 ```bash
-# Démarrer l'API
+# Option 1: via Uvicorn
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Ou via le CLI
+# Option 2: via le CLI
 python main.py serve
 ```
 
-Accéder à la documentation interactive :
+### Endpoints principaux (exemples)
 
-- **Swagger UI** : http://localhost:8000/docs
-- **ReDoc** : http://localhost:8000/redoc
-
-## API REST
-
-### Endpoints principaux
-
-#### Événements
-
-```bash
-# Liste des événements (avec pagination et filtres)
+```http
+# Liste des événements (pagination + filtres)
 GET /api/v1/events?page=1&page_size=20&city=Paris&category=Concert
 
 # Détail d'un événement
@@ -106,20 +131,20 @@ PATCH /api/v1/events/{event_id}
 DELETE /api/v1/events/{event_id}
 ```
 
-#### Métadonnées
+### Métadonnées (exemples)
 
-```bash
+```http
 # Liste des catégories
 GET /api/v1/categories
 
-# Liste des villes
+# Liste des villes (filtrage possible)
 GET /api/v1/cities?state=Bretagne
 
 # Statistiques
 GET /api/v1/stats
 ```
 
-### Exemples de requêtes
+### Exemples rapides
 
 ```bash
 # Récupérer les événements à Paris
@@ -129,25 +154,31 @@ curl "http://localhost:8000/api/v1/events?city=Paris&page=1&page_size=10"
 curl "http://localhost:8000/api/v1/stats"
 ```
 
-## 🧪 Tests
+## Tests
 
 ```bash
-# Installer les dépendances de test
+# Installer les dépendances (si nécessaire)
 pip install -r requirements.txt
 
 # Lancer les tests
 pytest
 
-# Avec couverture
+# Couverture
 pytest --cov=src --cov-report=html
 
-# Tests spécifiques
+# Sous-ensembles
 pytest tests/unit/
 pytest tests/integration/
 ```
 
-## Support
+## Dépannage
 
-- Documentation : http://localhost:8000/docs
-- Adminer (DB UI) : http://localhost:8080
-- Logs : `logs/scraper.log`
+- **Port déjà utilisé**: changez les ports dans `docker-compose.yml` ou ajoutez `--port` pour Uvicorn.
+- **Connexion DB**: vérifiez `DATABASE_URL` dans `.env` et que Postgres est prêt (Docker: `docker compose logs -f db`).
+- **API non démarrée avec Docker**: si le service API est commenté dans `docker-compose.yml`, démarrez-la en local via Uvicorn.
+
+---
+
+- **Docs API**: http://localhost:8000/docs
+- **Adminer (DB UI)**: http://localhost:8080
+- **Logs**: `logs/scraper.log`
