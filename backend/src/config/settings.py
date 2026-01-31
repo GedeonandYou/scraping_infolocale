@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     # Database
     POSTGRES_USER: str = "infolocale_user"
-    POSTGRES_PASSWORD: str = "changeme"
+    POSTGRES_PASSWORD: str = "pwd_infolocale"
     POSTGRES_DB: str = "infolocale_db"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432

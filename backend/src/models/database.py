@@ -8,7 +8,7 @@ settings = get_settings()
 
 # Create database engine
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.database_url,
     echo=settings.LOG_LEVEL == "DEBUG",
     pool_pre_ping=True,
     pool_size=10,

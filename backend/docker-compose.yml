@@ -3,19 +3,22 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: infolocale_postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-infolocale_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_strong_password}
-      POSTGRES_DB: ${POSTGRES_DB:-infolocale_db}
+      # Values come from .env (no fallback) so you're sure what password is used.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - infolocale_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-infolocale_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,7 +36,7 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
-  # FastAPI Application (commenté - à utiliser si besoin)
+  # FastAPI Application (décommente si tu veux lancer l'API dans Docker)
   # api:
   #   build:
   #     context: .
@@ -42,10 +45,13 @@ services:
   #   env_file:
   #     - .env
   #   environment:
+  #     # IMPORTANT: à l'intérieur du réseau Docker, le host n'est PAS localhost.
   #     POSTGRES_HOST: postgres
   #     POSTGRES_PORT: 5432
+  #     # Si ton app lit DATABASE_URL, on l'aligne aussi (host=postgres).
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   #   ports:
-  #     - "${API_PORT:-8000}:8000"
+  #     - "${API_PORT}:8000"
   #   volumes:
   #     - ./src:/app/src
   #     - ./logs:/app/logs
@@ -55,7 +61,7 @@ services:
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
-  #   command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+  #   command: uvicorn src.main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000} --reload
 
 networks:
   infolocale_network:
