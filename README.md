@@ -82,3 +82,7 @@ Le scraper respecte automatiquement:
 - Gestion de la pagination
 - Rate limiting du géocodage
 - Headless Chrome via Selenium
+- **Gestion automatique de ChromeDriver** (webdriver-manager)
+  - Plus de problème de version incompatible
+  - Fonctionne sur toutes les machines sans configuration
+  - Voir [CHROMEDRIVER_SOLUTION.md](CHROMEDRIVER_SOLUTION.md) pour les détails

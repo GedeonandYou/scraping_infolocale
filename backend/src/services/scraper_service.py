@@ -11,6 +11,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from loguru import logger
 
@@ -34,7 +37,7 @@ class ScraperService:
         self.existing_uids = set()
 
     def _init_driver(self):
-        """Initialize Chrome WebDriver."""
+        """Initialize Chrome WebDriver with automatic ChromeDriver management."""
         chrome_options = Options()
         chrome_options.add_argument('--headless')  # Mode sans interface
         chrome_options.add_argument('--no-sandbox')
@@ -42,12 +45,32 @@ class ScraperService:
         chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument(f'user-agent={settings.SCRAPING_USER_AGENT}')
 
-        # Chemin vers le ChromeDriver local
-        chromedriver_path = os.path.join(os.getcwd(), 'chromedriver')
+        # Performance optimizations
+        chrome_options.add_argument('--disable-images')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--blink-settings=imagesEnabled=false')
+        chrome_options.page_load_strategy = 'eager'
 
-        service = Service(executable_path=chromedriver_path)
+        # Additional performance
+        prefs = {
+            'profile.managed_default_content_settings.images': 2,
+            'profile.default_content_setting_values.notifications': 2,
+            'profile.managed_default_content_settings.stylesheets': 2,
+            'profile.managed_default_content_settings.cookies': 1,
+            'profile.managed_default_content_settings.javascript': 1,
+            'profile.managed_default_content_settings.plugins': 2,
+            'profile.managed_default_content_settings.popups': 2,
+            'profile.managed_default_content_settings.geolocation': 2,
+            'profile.managed_default_content_settings.media_stream': 2,
+        }
+        chrome_options.add_experimental_option('prefs', prefs)
+
+        # Use webdriver-manager to automatically download and manage ChromeDriver
+        # This eliminates version mismatch issues between Chrome and ChromeDriver
+        service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        logger.info("Chrome WebDriver initialized")
+        logger.info("Chrome WebDriver initialized with automatic driver management")
 
     def _generate_uid(self, data_id: str) -> str:
         """
