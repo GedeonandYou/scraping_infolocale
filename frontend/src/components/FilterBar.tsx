@@ -38,7 +38,7 @@ export function FilterBar({
   categoriesLoading = false,
   citiesLoading = false,
 }: FilterBarProps) {
-  const hasFilters = searchQuery || selectedCategory || selectedCity
+  const hasFilters = Boolean(searchQuery || selectedCategory || selectedCity)
 
   const clearFilters = () => {
     onSearchChange("")
@@ -61,7 +61,7 @@ export function FilterBar({
           </div>
 
           <Select
-            value={selectedCategory || "all"}
+            value={selectedCategory ?? "all"}
             onValueChange={(v) => onCategoryChange(v === "all" ? null : v)}
           >
             <SelectTrigger className="w-full sm:w-48 border-border/50 bg-background/50 hover:bg-background/70 focus:bg-background">
@@ -87,7 +87,7 @@ export function FilterBar({
           </Select>
 
           <Select
-            value={selectedCity || "all"}
+            value={selectedCity ?? "all"}
             onValueChange={(v) => onCityChange(v === "all" ? null : v)}
           >
             <SelectTrigger className="w-full sm:w-48 border-border/50 bg-background/50 hover:bg-background/70 focus:bg-background">
@@ -114,39 +114,55 @@ export function FilterBar({
         </div>
       </div>
 
-      {hasFilters && (
+      {hasFilters ? (
         <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-3 rounded-lg">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Filtres actifs :</span>
+            <span className="text-sm font-medium text-foreground">
+              Filtres actifs :
+            </span>
           </div>
 
-          {searchQuery && (
+          {searchQuery ? (
             <Badge className="gap-1 bg-primary/10 text-primary border border-primary/20">
-              🔍 "{searchQuery}"
-              <X className="h-3 w-3 cursor-pointer" onClick={() => onSearchChange("")} />
+              🔍 &quot;{searchQuery}&quot;
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onSearchChange("")}
+              />
             </Badge>
-          )}
+          ) : null}
 
-          {selectedCategory && (
+          {selectedCategory ? (
             <Badge className="gap-1 bg-primary/10 text-primary border border-primary/20">
               📂 {selectedCategory}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => onCategoryChange(null)} />
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onCategoryChange(null)}
+              />
             </Badge>
-          )}
+          ) : null}
 
-          {selectedCity && (
+          {selectedCity ? (
             <Badge className="gap-1 bg-primary/10 text-primary border border-primary/20">
               📍 {selectedCity}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => onCityChange(null)} />
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onCityChange(null)}
+              />
             </Badge>
-          )}
+          ) : null}
 
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="ml-auto"
+          >
             ✕ Effacer tout
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

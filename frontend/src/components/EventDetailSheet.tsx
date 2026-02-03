@@ -1,3 +1,5 @@
+// src/components/EventDetailSheet.tsx
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -35,7 +37,9 @@ declare global {
   }
 }
 if (typeof window !== "undefined" && !window.__leafletIconFixApplied) {
-  delete (L.Icon.Default.prototype as any)._getIconUrl
+  const proto = L.Icon.Default.prototype as unknown as Record<string, unknown>
+  // Leaflet cherche une URL via une méthode interne. Sous Vite, on la supprime puis on remap.
+  delete proto._getIconUrl
   L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl })
   window.__leafletIconFixApplied = true
 }
@@ -79,17 +83,22 @@ function formatDate(dateString?: string | null): string {
   })
 }
 
-function hasValidCoords(lat?: number, lng?: number): boolean {
-  return (
-    typeof lat === "number" &&
-    Number.isFinite(lat) &&
-    typeof lng === "number" &&
-    Number.isFinite(lng) &&
-    !(lat === 0 && lng === 0)
-  )
+function cleanText(s?: string | null): string {
+  if (!s) return ""
+  return String(s).replace(/\s+/g, " ").trim()
 }
 
-function getTileConfig() {
+function getCoords(
+  lat?: number | null,
+  lng?: number | null,
+): { lat: number; lng: number } | null {
+  if (typeof lat !== "number" || !Number.isFinite(lat)) return null
+  if (typeof lng !== "number" || !Number.isFinite(lng)) return null
+  if (lat === 0 && lng === 0) return null
+  return { lat, lng }
+}
+
+function getTileConfig(): { url: string; attribution: string; label: string } {
   const orsKey = import.meta.env.VITE_ORS_API_KEY as string | undefined
 
   if (orsKey && orsKey.trim().length > 0) {
@@ -110,9 +119,8 @@ function getTileConfig() {
   }
 }
 
-function cleanText(s?: string | null): string {
-  if (!s) return ""
-  return String(s).replace(/\s+/g, " ").trim()
+function openNewTab(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer")
 }
 
 export function EventDetailSheet({
@@ -122,30 +130,25 @@ export function EventDetailSheet({
   loading = false,
   error = null,
 }: EventDetailSheetProps) {
-  const tags = Array.isArray(event?.tags) ? event!.tags.filter(Boolean) : []
-  const artists = Array.isArray(event?.artists)
-    ? event!.artists.filter(Boolean)
-    : []
+  const tags = (event?.tags ?? []).filter((t) => t.trim().length > 0)
+  const artists = (event?.artists ?? []).filter((a) => a.trim().length > 0)
 
   const description = cleanText(event?.description)
   const hasDescription = description.length > 0
 
-  const coordsOk = hasValidCoords(event?.latitude, event?.longitude)
-  const coords = coordsOk
-    ? { lat: event!.latitude!, lng: event!.longitude! }
-    : null
+  const coords = getCoords(event?.latitude ?? null, event?.longitude ?? null)
   const tile = getTileConfig()
 
   const openInORS = () => {
     if (!coords) return
     const url = `https://maps.openrouteservice.org/directions?n1=${coords.lat}&n2=${coords.lng}&n3=16&b=0&c=0&k1=fr-FR&k2=km`
-    window.open(url, "_blank")
+    openNewTab(url)
   }
 
   const openInOSM = () => {
     if (!coords) return
     const url = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=16/${coords.lat}/${coords.lng}`
-    window.open(url, "_blank")
+    openNewTab(url)
   }
 
   return (
@@ -200,14 +203,12 @@ export function EventDetailSheet({
                     <Calendar className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold">
-                      {formatDate(event.beginDate)}
-                    </p>
-                    {event.endDate && event.endDate !== event.beginDate && (
+                    <p className="font-semibold">{formatDate(event.beginDate)}</p>
+                    {event.endDate && event.endDate !== event.beginDate ? (
                       <p className="text-xs text-muted-foreground">
                         jusqu&apos;au {formatDate(event.endDate)}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
@@ -234,11 +235,13 @@ export function EventDetailSheet({
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">{event.locationName || "—"}</p>
+
                     {event.address ? (
                       <p className="text-sm text-muted-foreground mt-1">
                         {event.address}
                       </p>
                     ) : null}
+
                     <p className="text-xs text-muted-foreground mt-1">
                       {[event.zipcode, event.city, event.state]
                         .filter(Boolean)
@@ -284,10 +287,8 @@ export function EventDetailSheet({
                         scrollWheelZoom={false}
                         style={{ height: "100%", width: "100%" }}
                       >
-                        <TileLayer
-                          url={tile.url}
-                          attribution={tile.attribution}
-                        />
+                        <TileLayer url={tile.url} attribution={tile.attribution} />
+
                         <Marker position={[coords.lat, coords.lng]}>
                           <Popup>
                             <div className="text-xs">
@@ -308,7 +309,7 @@ export function EventDetailSheet({
 
               <Separator />
 
-              {/* ✅ Description */}
+              {/* Description */}
               <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <span className="inline-block w-1 h-4 bg-primary rounded-full" />
@@ -328,7 +329,7 @@ export function EventDetailSheet({
 
               <Separator />
 
-              {/* ✅ Details (Organisateur + Tarif + Site + Artistes) */}
+              {/* Details */}
               <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
                 {/* Organisateur */}
                 <div className="flex items-center gap-3 text-sm">
@@ -336,9 +337,7 @@ export function EventDetailSheet({
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">
-                      Organisateur
-                    </p>
+                    <p className="text-xs text-muted-foreground">Organisateur</p>
                     <p className="font-medium">
                       {event.organizer?.trim() ? event.organizer : "—"}
                     </p>
@@ -365,9 +364,7 @@ export function EventDetailSheet({
                       <ExternalLink className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">
-                        Site officiel
-                      </p>
+                      <p className="text-xs text-muted-foreground">Site officiel</p>
                       <p className="font-medium truncate max-w-60">
                         {event.website?.trim() ? event.website : "—"}
                       </p>
@@ -378,7 +375,7 @@ export function EventDetailSheet({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(event.website!, "_blank")}
+                      onClick={() => openNewTab(event.website!)}
                     >
                       Ouvrir
                     </Button>
@@ -401,7 +398,7 @@ export function EventDetailSheet({
 
               <Separator />
 
-              {/* ✅ Tags */}
+              {/* Tags */}
               <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="p-1.5 rounded bg-primary/10">
@@ -429,11 +426,11 @@ export function EventDetailSheet({
                 </div>
               </div>
 
-              {/* Bouton site (optionnel, plus visible) */}
+              {/* CTA */}
               {event.website?.trim() ? (
                 <Button
                   className="w-full font-semibold h-10 rounded-lg"
-                  onClick={() => window.open(event.website!, "_blank")}
+                  onClick={() => openNewTab(event.website!)}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Voir le site officiel
