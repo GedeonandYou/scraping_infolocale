@@ -12,7 +12,7 @@ import {
 import { Activity, Calendar, Database, MapPin } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
-const API_URL = "http://192.168.33.17:8000/api/v1"
+const API_URL = "http://localhost:8000/api/v1"
 
 /** Helpers */
 function extractArray(data: unknown, keys: string[]): unknown[] {

@@ -1,9 +1,44 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import type { ScannedEvent } from "@/data/Events"
-import { Calendar, Clock, Euro, ExternalLink, MapPin, Music, Tag, User } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  Euro,
+  ExternalLink,
+  MapPin,
+  Music,
+  Tag,
+  User,
+} from "lucide-react"
+
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet"
+
+import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png"
+import iconUrl from "leaflet/dist/images/marker-icon.png"
+import shadowUrl from "leaflet/dist/images/marker-shadow.png"
+
+/** ✅ Fix Leaflet marker icons (Vite/React) */
+declare global {
+  interface Window {
+    __leafletIconFixApplied?: boolean
+  }
+}
+if (typeof window !== "undefined" && !window.__leafletIconFixApplied) {
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl })
+  window.__leafletIconFixApplied = true
+}
 
 interface EventDetailSheetProps {
   event: ScannedEvent | null
@@ -44,6 +79,42 @@ function formatDate(dateString?: string | null): string {
   })
 }
 
+function hasValidCoords(lat?: number, lng?: number): boolean {
+  return (
+    typeof lat === "number" &&
+    Number.isFinite(lat) &&
+    typeof lng === "number" &&
+    Number.isFinite(lng) &&
+    !(lat === 0 && lng === 0)
+  )
+}
+
+function getTileConfig() {
+  const orsKey = import.meta.env.VITE_ORS_API_KEY as string | undefined
+
+  if (orsKey && orsKey.trim().length > 0) {
+    return {
+      url: `https://api.openrouteservice.org/pmapsurfer/{z}/{x}/{y}.png?api_key=${encodeURIComponent(
+        orsKey,
+      )}`,
+      attribution:
+        "&copy; openrouteservice / HeiGIT &copy; OpenStreetMap contributors",
+      label: "ORS MapSurfer",
+    }
+  }
+
+  return {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap contributors",
+    label: "OpenStreetMap (fallback)",
+  }
+}
+
+function cleanText(s?: string | null): string {
+  if (!s) return ""
+  return String(s).replace(/\s+/g, " ").trim()
+}
+
 export function EventDetailSheet({
   event,
   open,
@@ -51,9 +122,31 @@ export function EventDetailSheet({
   loading = false,
   error = null,
 }: EventDetailSheetProps) {
-  // ✅ tags safe (même si event null)
-  const tags: string[] = Array.isArray((event as any)?.tags) ? ((event as any).tags as string[]) : []
-  const artists: string[] = Array.isArray((event as any)?.artists) ? ((event as any).artists as string[]) : []
+  const tags = Array.isArray(event?.tags) ? event!.tags.filter(Boolean) : []
+  const artists = Array.isArray(event?.artists)
+    ? event!.artists.filter(Boolean)
+    : []
+
+  const description = cleanText(event?.description)
+  const hasDescription = description.length > 0
+
+  const coordsOk = hasValidCoords(event?.latitude, event?.longitude)
+  const coords = coordsOk
+    ? { lat: event!.latitude!, lng: event!.longitude! }
+    : null
+  const tile = getTileConfig()
+
+  const openInORS = () => {
+    if (!coords) return
+    const url = `https://maps.openrouteservice.org/directions?n1=${coords.lat}&n2=${coords.lng}&n3=16&b=0&c=0&k1=fr-FR&k2=km`
+    window.open(url, "_blank")
+  }
+
+  const openInOSM = () => {
+    if (!coords) return
+    const url = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=16/${coords.lat}/${coords.lng}`
+    window.open(url, "_blank")
+  }
 
   return (
     <Sheet
@@ -63,9 +156,12 @@ export function EventDetailSheet({
       }}
     >
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-gradient-to-b from-card via-card to-muted/5 p-5">
-        <SheetHeader className="space-y-4 pb-6 border-b border-border">
+        <SheetHeader className="space-y-2 pb-6 border-b border-border">
           <div className="flex items-start justify-between gap-3">
-            <Badge variant="outline" className={categoryColors[event?.category ?? ""] || ""}>
+            <Badge
+              variant="outline"
+              className={categoryColors[event?.category ?? ""] || ""}
+            >
               {event?.category || "—"}
             </Badge>
           </div>
@@ -74,14 +170,25 @@ export function EventDetailSheet({
             {event?.title || (loading ? "Chargement..." : "—")}
           </SheetTitle>
 
+          <SheetDescription className="text-sm text-muted-foreground">
+            {event
+              ? `${event.city || "—"} • ${formatDate(event.beginDate)}`
+              : "Détails de l’événement"}
+          </SheetDescription>
+
           {error ? <p className="text-sm text-red-600">❌ {error}</p> : null}
-          {loading ? <p className="text-sm text-muted-foreground">⏳ Chargement des détails...</p> : null}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">
+              ⏳ Chargement des détails...
+            </p>
+          ) : null}
         </SheetHeader>
 
-        {/* contenu */}
         <div className="mt-6 space-y-6">
           {!event && !loading ? (
-            <p className="text-sm text-muted-foreground">Aucun détail à afficher.</p>
+            <p className="text-sm text-muted-foreground">
+              Aucun détail à afficher.
+            </p>
           ) : null}
 
           {event ? (
@@ -93,89 +200,192 @@ export function EventDetailSheet({
                     <Calendar className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold">{formatDate((event as any).beginDate)}</p>
-                    {(event as any).endDate && (event as any).endDate !== (event as any).beginDate && (
+                    <p className="font-semibold">
+                      {formatDate(event.beginDate)}
+                    </p>
+                    {event.endDate && event.endDate !== event.beginDate && (
                       <p className="text-xs text-muted-foreground">
-                        jusqu&apos;au {formatDate((event as any).endDate)}
+                        jusqu&apos;au {formatDate(event.endDate)}
                       </p>
                     )}
                   </div>
                 </div>
 
-                {(event as any).startTime && (
+                {event.startTime ? (
                   <div className="flex items-center gap-3 text-sm mt-2">
                     <div className="p-2 rounded bg-primary/10">
                       <Clock className="h-4 w-4 text-primary" />
                     </div>
                     <span className="font-medium">
-                      {(event as any).startTime}
-                      {(event as any).endTime ? ` - ${(event as any).endTime}` : ""}
+                      {event.startTime}
+                      {event.endTime ? ` - ${event.endTime}` : ""}
                     </span>
                   </div>
-                )}
+                ) : null}
               </div>
 
               <Separator />
 
-              {/* Location */}
+              {/* Location + Map */}
               <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
                 <div className="flex items-start gap-3 text-sm">
                   <div className="p-2 rounded bg-primary/10 shrink-0">
                     <MapPin className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold">{(event as any).locationName || "—"}</p>
-                    {(event as any).address ? (
-                      <p className="text-sm text-muted-foreground mt-1">{(event as any).address}</p>
+                    <p className="font-semibold">{event.locationName || "—"}</p>
+                    {event.address ? (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {event.address}
+                      </p>
                     ) : null}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {[(event as any).zipcode, (event as any).city, (event as any).state]
+                      {[event.zipcode, event.city, event.state]
                         .filter(Boolean)
                         .join(" ")}
                     </p>
+
+                    {coords ? (
+                      <p className="text-xs text-muted-foreground mt-2 font-mono bg-muted/40 p-1.5 rounded inline-block">
+                        📍 {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        📍 Coordonnées indisponibles
+                      </p>
+                    )}
                   </div>
                 </div>
+
+                {coords ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Carte:{" "}
+                        <span className="font-medium text-foreground">
+                          {tile.label}
+                        </span>
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={openInOSM}>
+                          OSM
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={openInORS}>
+                          ORS
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="h-56 w-full overflow-hidden rounded-lg border border-border/60">
+                      <MapContainer
+                        key={`${coords.lat}-${coords.lng}`}
+                        center={[coords.lat, coords.lng]}
+                        zoom={15}
+                        scrollWheelZoom={false}
+                        style={{ height: "100%", width: "100%" }}
+                      >
+                        <TileLayer
+                          url={tile.url}
+                          attribution={tile.attribution}
+                        />
+                        <Marker position={[coords.lat, coords.lng]}>
+                          <Popup>
+                            <div className="text-xs">
+                              <div className="font-semibold">
+                                {event.title || "Événement"}
+                              </div>
+                              <div className="text-muted-foreground">
+                                {event.locationName || ""}
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      </MapContainer>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <Separator />
 
-              {/* Description */}
+              {/* ✅ Description */}
               <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <span className="inline-block w-1 h-4 bg-primary rounded-full" />
                   Description
                 </h4>
-                <p className="text-sm leading-relaxed text-foreground">
-                  {event.description || "—"}
-                </p>
+
+                {hasDescription ? (
+                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                    {description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Aucune description disponible.
+                  </p>
+                )}
               </div>
 
               <Separator />
 
-              {/* Details */}
+              {/* ✅ Details (Organisateur + Tarif + Site + Artistes) */}
               <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/50">
+                {/* Organisateur */}
                 <div className="flex items-center gap-3 text-sm">
                   <div className="p-2 rounded bg-primary/10">
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Organisateur</p>
-                    <p className="font-medium">{event.organizer || "—"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Organisateur
+                    </p>
+                    <p className="font-medium">
+                      {event.organizer?.trim() ? event.organizer : "—"}
+                    </p>
                   </div>
                 </div>
 
-                {(event as any).pricing ? (
-                  <div className="flex items-center gap-3 text-sm">
+                {/* Tarif */}
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="p-2 rounded bg-primary/10">
+                    <Euro className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tarif</p>
+                    <p className="font-medium">
+                      {event.pricing?.trim() ? event.pricing : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Website */}
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="p-2 rounded bg-primary/10">
-                      <Euro className="h-4 w-4 text-primary" />
+                      <ExternalLink className="h-4 w-4 text-primary" />
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Tarif</p>
-                      <p className="font-medium">{(event as any).pricing}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">
+                        Site officiel
+                      </p>
+                      <p className="font-medium truncate max-w-60">
+                        {event.website?.trim() ? event.website : "—"}
+                      </p>
                     </div>
                   </div>
-                ) : null}
 
+                  {event.website?.trim() ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(event.website!, "_blank")}
+                    >
+                      Ouvrir
+                    </Button>
+                  ) : null}
+                </div>
+
+                {/* Artistes */}
                 {artists.length > 0 ? (
                   <div className="flex items-start gap-3 text-sm">
                     <div className="p-2 rounded bg-primary/10 shrink-0">
@@ -191,7 +401,7 @@ export function EventDetailSheet({
 
               <Separator />
 
-              {/* Tags ✅ */}
+              {/* ✅ Tags */}
               <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="p-1.5 rounded bg-primary/10">
@@ -202,9 +412,11 @@ export function EventDetailSheet({
 
                 <div className="flex flex-wrap gap-2">
                   {tags.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">—</span>
+                    <span className="text-xs text-muted-foreground">
+                      Aucun tag.
+                    </span>
                   ) : (
-                    tags.map((tag: string) => (
+                    tags.map((tag) => (
                       <Badge
                         key={tag}
                         variant="secondary"
@@ -217,9 +429,12 @@ export function EventDetailSheet({
                 </div>
               </div>
 
-              {/* Action */}
-              {(event as any).website ? (
-                <Button className="w-full font-semibold h-10 rounded-lg" onClick={() => window.open((event as any).website, "_blank")}>
+              {/* Bouton site (optionnel, plus visible) */}
+              {event.website?.trim() ? (
+                <Button
+                  className="w-full font-semibold h-10 rounded-lg"
+                  onClick={() => window.open(event.website!, "_blank")}
+                >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Voir le site officiel
                 </Button>
