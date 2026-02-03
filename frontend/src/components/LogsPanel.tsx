@@ -1,20 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Info, Terminal } from "lucide-react"
-
-type LogLevel = "info" | "success" | "warning" | "error" | string
-
-export interface LogItem {
-  time: string
-  message: string
-  level?: LogLevel
-}
+import {
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  Terminal,
+  type LucideIcon,
+} from "lucide-react"
+import type { LogItem, LogLevel } from "@/data/Events"
 
 interface LogsPanelProps {
   logs: LogItem[]
 }
 
-const levelConfig: Record<string, { icon: any; label: string; badgeClass: string }> = {
+type KnownLevel = Exclude<LogLevel, string> | "info" | "success" | "warning" | "error"
+
+const levelConfig: Record<
+  "info" | "success" | "warning" | "error",
+  { icon: LucideIcon; label: string; badgeClass: string }
+> = {
   info: {
     icon: Info,
     label: "Info",
@@ -37,8 +41,6 @@ const levelConfig: Record<string, { icon: any; label: string; badgeClass: string
   },
 }
 
-const fallbackLevel = levelConfig.info
-
 export function LogsPanel({ logs }: LogsPanelProps) {
   return (
     <Card className="rounded-xl border-border">
@@ -50,13 +52,15 @@ export function LogsPanel({ logs }: LogsPanelProps) {
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {(!logs || logs.length === 0) && (
-          <p className="text-sm text-muted-foreground">Aucun log pour le moment.</p>
-        )}
+        {logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aucun log pour le moment.
+          </p>
+        ) : null}
 
-        {logs?.map((log, idx) => {
-          // ✅ fallback si level manquant ou inconnu
-          const cfg = levelConfig[String(log.level ?? "info")] ?? fallbackLevel
+        {logs.map((log, idx) => {
+          const key = log.level && log.level in levelConfig ? (log.level as keyof typeof levelConfig) : "info"
+          const cfg = levelConfig[key]
           const Icon = cfg.icon
 
           return (
@@ -67,7 +71,9 @@ export function LogsPanel({ logs }: LogsPanelProps) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <Icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{log.time}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {log.time}
+                  </span>
                 </div>
                 <p className="text-sm mt-1 wrap-break-word">{log.message}</p>
               </div>

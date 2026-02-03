@@ -1,3 +1,5 @@
+// src/data/Events.ts
+
 export interface ApiEvent {
   title?: string | null
   category?: string | null
@@ -91,68 +93,101 @@ export interface ScannedEvent {
   userId?: number
 }
 
-function safeString(v: unknown): string {
-  return typeof v === "string" ? v : ""
+/** ---------- helpers safe parsing ---------- */
+
+function asTrimmedString(v: unknown): string {
+  return typeof v === "string" ? v.trim() : ""
 }
-function safeNumber(v: unknown): number | undefined {
+
+function asOptionalTrimmedString(v: unknown): string | undefined {
+  const s = typeof v === "string" ? v.trim() : ""
+  return s.length > 0 ? s : undefined
+}
+
+function asFiniteNumber(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined
 }
 
+function asStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v
+    .filter((x): x is string => typeof x === "string")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
+
+/** ---------- mapper API -> UI ---------- */
+
 export function mapApiEventToScannedEvent(api: ApiEvent): ScannedEvent {
+  const id = asFiniteNumber(api.id) ?? 0
+
   return {
-    id: safeNumber(api.id) ?? 0,
-    uid: safeString(api.uid),
+    id,
+    uid: asTrimmedString(api.uid),
 
-    title: safeString(api.title),
-    category: safeString(api.category),
+    title: asTrimmedString(api.title),
+    category: asTrimmedString(api.category),
 
-    beginDate: safeString(api.begin_date),
-    endDate: api.end_date ?? undefined,
-    startTime: api.start_time ?? undefined,
-    endTime: api.end_time ?? undefined,
+    beginDate: asTrimmedString(api.begin_date),
+    endDate: asOptionalTrimmedString(api.end_date),
+    startTime: asOptionalTrimmedString(api.start_time),
+    endTime: asOptionalTrimmedString(api.end_time),
 
-    description: safeString(api.description),
-    organizer: safeString(api.organizer),
-    pricing: api.pricing ?? undefined,
-    website: api.website ?? undefined,
+    description: asTrimmedString(api.description),
+    organizer: asTrimmedString(api.organizer),
+    pricing: asOptionalTrimmedString(api.pricing),
+    website: asOptionalTrimmedString(api.website),
 
-    tags: Array.isArray(api.tags) ? api.tags : [],
-    artists: Array.isArray(api.artists) ? api.artists : undefined,
-    sponsors: Array.isArray(api.sponsors) ? api.sponsors : undefined,
+    tags: asStringArray(api.tags),
+    artists: asStringArray(api.artists).length ? asStringArray(api.artists) : undefined,
+    sponsors: asStringArray(api.sponsors).length ? asStringArray(api.sponsors) : undefined,
 
-    locationName: safeString(api.location_name),
-    address: safeString(api.address),
-    zipcode: safeString(api.zipcode),
-    city: safeString(api.city),
-    state: safeString(api.state),
-    country: safeString(api.country),
+    locationName: asTrimmedString(api.location_name),
+    address: asTrimmedString(api.address),
+    zipcode: asTrimmedString(api.zipcode),
+    city: asTrimmedString(api.city),
+    state: asTrimmedString(api.state),
+    country: asTrimmedString(api.country),
 
-    latitude: safeNumber(api.latitude),
-    longitude: safeNumber(api.longitude),
+    latitude: asFiniteNumber(api.latitude),
+    longitude: asFiniteNumber(api.longitude),
 
-    displayName: api.display_name ?? undefined,
-    placeId: api.place_id ?? undefined,
-    placeName: api.place_name ?? undefined,
-    placeTypes: Array.isArray(api.place_types) ? api.place_types : undefined,
+    displayName: asOptionalTrimmedString(api.display_name),
+    placeId: asOptionalTrimmedString(api.place_id),
+    placeName: asOptionalTrimmedString(api.place_name),
+    placeTypes: asStringArray(api.place_types).length
+      ? asStringArray(api.place_types)
+      : undefined,
 
-    rating: safeNumber(api.rating),
-    imagePath: api.image_path ?? undefined,
-    qrCode: api.qr_code ?? undefined,
-    schemaOrgTypes: Array.isArray(api.schema_org_types) ? api.schema_org_types : undefined,
+    rating: asFiniteNumber(api.rating),
+    imagePath: asOptionalTrimmedString(api.image_path),
+    qrCode: asOptionalTrimmedString(api.qr_code),
+    schemaOrgTypes: asStringArray(api.schema_org_types).length
+      ? asStringArray(api.schema_org_types)
+      : undefined,
     rawJson: api.raw_json ?? undefined,
 
-    createdAt: api.created_at ?? undefined,
-    isPrivate: api.is_private ?? undefined,
-    userId: safeNumber(api.user_id),
+    createdAt: asOptionalTrimmedString(api.created_at),
+    isPrivate: typeof api.is_private === "boolean" ? api.is_private : undefined,
+    userId: asFiniteNumber(api.user_id),
   }
 }
 
-/* --- tes mocks peuvent rester (inchangés) --- */
-export const mockLogs = [
-  { time: "10:15", message: "Scraping démarré", level: "info" as const },
-  { time: "10:17", message: "20 événements récupérés", level: "success" as const },
-  { time: "10:18", message: "1 doublon ignoré", level: "warning" as const },
-  { time: "10:19", message: "Scraping terminé", level: "success" as const },
+/** ---------- mocks (optionnels) ---------- */
+
+export type LogLevel = "info" | "success" | "warning" | "error"
+
+export interface LogItem {
+  time: string
+  message: string
+  level: LogLevel
+}
+
+export const mockLogs: LogItem[] = [
+  { time: "10:15", message: "Scraping démarré", level: "info" },
+  { time: "10:17", message: "20 événements récupérés", level: "success" },
+  { time: "10:18", message: "1 doublon ignoré", level: "warning" },
+  { time: "10:19", message: "Scraping terminé", level: "success" },
 ]
 
 export const mockEvents: ScannedEvent[] = []

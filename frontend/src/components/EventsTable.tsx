@@ -1,4 +1,4 @@
-import { Calendar, MapPin, ExternalLink } from "lucide-react"
+import { Calendar, ExternalLink, MapPin } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,29 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { ScannedEvent } from "@/data/Events"
+import { formatShortDate } from "@/utils/date"
+import { getCategoryBadgeClass } from "@/constants/categoryStyles"
 
 interface EventsTableProps {
   events: ScannedEvent[]
   onSelectEvent: (event: ScannedEvent) => void
-}
-
-const categoryColors: Record<string, string> = {
-  Concert: "bg-purple-100 text-purple-800 border-purple-200",
-  Exposition: "bg-blue-100 text-blue-800 border-blue-200",
-  Marché: "bg-green-100 text-green-800 border-green-200",
-  Théâtre: "bg-red-100 text-red-800 border-red-200",
-  Sport: "bg-orange-100 text-orange-800 border-orange-200",
-  Festival: "bg-pink-100 text-pink-800 border-pink-200",
-  Conférence: "bg-slate-100 text-slate-800 border-slate-200",
-  Atelier: "bg-teal-100 text-teal-800 border-teal-200",
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
 }
 
 export function EventsTable({ events, onSelectEvent }: EventsTableProps) {
@@ -52,7 +35,7 @@ export function EventsTable({ events, onSelectEvent }: EventsTableProps) {
 
         <TableBody>
           {events.map((event) => {
-            const tags = Array.isArray((event as any).tags) ? (event as any).tags : []
+            const tags = event.tags ?? []
 
             return (
               <TableRow
@@ -64,67 +47,77 @@ export function EventsTable({ events, onSelectEvent }: EventsTableProps) {
                   <div className="space-y-1">
                     <p className="font-medium leading-tight">{event.title}</p>
                     <p className="text-sm text-muted-foreground truncate max-w-xs">
-                      {event.organizer}
+                      {event.organizer || "—"}
                     </p>
                   </div>
                 </TableCell>
 
                 <TableCell>
-                  <Badge variant="outline" className={categoryColors[event.category] || ""}>
-                    {event.category}
+                  <Badge
+                    variant="outline"
+                    className={getCategoryBadgeClass(event.category, "table")}
+                  >
+                    {event.category || "—"}
                   </Badge>
                 </TableCell>
 
                 <TableCell>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                    {formatDate(event.beginDate)}
-                    {event.startTime && (
-                      <span className="text-muted-foreground">• {event.startTime}</span>
-                    )}
+                    {formatShortDate(event.beginDate)}
+                    {event.startTime ? (
+                      <span className="text-muted-foreground">
+                        • {event.startTime}
+                      </span>
+                    ) : null}
                   </div>
                 </TableCell>
 
                 <TableCell>
                   <div className="flex items-center gap-1.5 text-sm">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{event.city}</span>
+                    <span>{event.city || "—"}</span>
                   </div>
                 </TableCell>
 
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {tags.slice(0, 2).map((tag: string) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-
-                    {tags.length > 2 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{tags.length - 2}
-                      </span>
-                    )}
-
-                    {tags.length === 0 && (
+                    {tags.length === 0 ? (
                       <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <>
+                        {tags.slice(0, 2).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                        {tags.length > 2 ? (
+                          <span className="text-xs text-muted-foreground">
+                            +{tags.length - 2}
+                          </span>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 </TableCell>
 
                 <TableCell className="text-right">
-                  {event.website && (
+                  {event.website ? (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        window.open(event.website, "_blank")
+                        window.open(event.website, "_blank", "noopener,noreferrer")
                       }}
                     >
                       <ExternalLink className="h-4 w-4" />
                     </Button>
-                  )}
+                  ) : null}
                 </TableCell>
               </TableRow>
             )
