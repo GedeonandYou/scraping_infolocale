@@ -14,7 +14,8 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # NOTE: init.sql removed - using Alembic migrations instead
+      # Run 'python main.py init-db' after starting PostgreSQL
     networks:
       - infolocale_network
     healthcheck:

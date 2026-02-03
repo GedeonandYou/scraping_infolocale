@@ -1,5 +1,6 @@
 """Main CLI entry point for the scraper."""
 
+import subprocess
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -10,7 +11,7 @@ from src.services.storage_service import StorageService
 from src.services.opendata_import_service import OpenDataImportService
 from src.exporters.csv_exporter import CSVExporter
 from src.exporters.json_exporter import JSONExporter
-from src.models.database import engine, create_db_and_tables
+from src.models.database import engine
 from src.models.scanned_event import ScannedEvent
 from src.utils.logger import setup_logger
 
@@ -21,10 +22,22 @@ logger = setup_logger()
 
 @app.command()
 def init_db():
-    """Initialiser la base de données."""
-    console.print("[bold blue]Initialisation de la base de données...[/bold blue]")
-    create_db_and_tables()
-    console.print("[bold green]✓ Base de données initialisée avec succès![/bold green]")
+    """Initialiser la base de données avec Alembic migrations."""
+    console.print("[bold blue]Initialisation de la base de données avec Alembic...[/bold blue]")
+    try:
+        # Run Alembic migrations
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        console.print(result.stdout)
+        console.print("[bold green]✓ Base de données initialisée avec succès![/bold green]")
+    except subprocess.CalledProcessError as e:
+        console.print(f"[bold red]✗ Erreur lors des migrations:[/bold red]")
+        console.print(e.stderr)
+        raise typer.Exit(code=1)
 
 
 @app.command()
