@@ -108,6 +108,22 @@ class Settings(BaseSettings):
         return v.strip()
 
     # ==========================================
+    # ALGOLIA CONFIGURATION
+    # ==========================================
+    ALGOLIA_APP_ID: str = Field(
+        default="E35VBJOT1F",
+        description="Algolia Application ID"
+    )
+    ALGOLIA_API_KEY: str = Field(
+        default="",
+        description="Algolia secured API key (base64, from infolocale.fr)"
+    )
+    ALGOLIA_INDEX: str = Field(
+        default="memo_events",
+        description="Algolia index name"
+    )
+
+    # ==========================================
     # SCRAPING CONFIGURATION
     # ==========================================
     SCRAPING_DELAY: int = Field(
