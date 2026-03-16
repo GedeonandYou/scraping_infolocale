@@ -1,7 +1,7 @@
-"""Genere un rapport Word comparant l'approche scraping vs API a la demande."""
+"""Genere un rapport Word comparant les 3 approches d'acces aux evenements Infolocale."""
 
 from docx import Document
-from docx.shared import Inches, Pt, Cm, RGBColor
+from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
@@ -23,7 +23,6 @@ def add_styled_table(doc, headers, rows, col_widths=None):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.style = "Table Grid"
 
-    # Header row
     for i, header in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = header
@@ -35,7 +34,6 @@ def add_styled_table(doc, headers, rows, col_widths=None):
                 run.font.color.rgb = RGBColor(255, 255, 255)
         set_cell_shading(cell, "2E74B5")
 
-    # Data rows
     for r, row_data in enumerate(rows):
         for c, value in enumerate(row_data):
             cell = table.rows[r + 1].cells[c]
@@ -57,7 +55,6 @@ def add_styled_table(doc, headers, rows, col_widths=None):
 def generate_report():
     doc = Document()
 
-    # -- Styles --
     style = doc.styles["Normal"]
     style.font.name = "Calibri"
     style.font.size = Pt(11)
@@ -78,8 +75,8 @@ def generate_report():
     subtitle = doc.add_paragraph()
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = subtitle.add_run(
-        "Scraping Algolia vs API a la demande\n"
-        "pour la recuperation des evenements Infolocale"
+        "Trois approches pour la recuperation\n"
+        "des evenements Infolocale"
     )
     run.font.size = Pt(16)
     run.font.color.rgb = RGBColor(89, 89, 89)
@@ -104,14 +101,15 @@ def generate_report():
     doc.add_heading("Table des matieres", level=1)
     toc_items = [
         "1. Contexte et objectifs",
-        "2. Architecture actuelle (Scraping Algolia)",
-        "3. Architecture proposee (API a la demande)",
-        "4. Comparaison detaillee",
-        "5. Analyse des risques",
-        "6. Performance et scalabilite",
-        "7. Cout et maintenance",
-        "8. Recommandation finale",
-        "9. Plan de migration",
+        "2. V1 - Scraping HTML (architecture originale)",
+        "3. V2 - Scraping via API Algolia",
+        "4. V3 - API a la demande (architecture proposee)",
+        "5. Comparaison detaillee des 3 approches",
+        "6. Analyse des risques",
+        "7. Performance et scalabilite",
+        "8. Cout et maintenance",
+        "9. Recommandation finale",
+        "10. Plan de migration",
     ]
     for item in toc_items:
         p = doc.add_paragraph(item)
@@ -132,20 +130,37 @@ def generate_report():
 
     doc.add_heading("1.1 Source de donnees", level=2)
     doc.add_paragraph(
-        "Infolocale.fr utilise l'index Algolia memo_events qui contient plus de "
-        "110 000 evenements. L'acces a cet index se fait via une \"secured key\" "
-        "base64 avec un champ validUntil qui expire regulierement."
+        "Infolocale.fr est une plateforme d'evenements locaux couvrant l'ensemble "
+        "du territoire francais. Le site affiche les evenements sous forme de cartes "
+        "HTML et utilise en interne un index Algolia (memo_events, 110 000+ evenements) "
+        "pour la recherche cote frontend."
     )
 
-    doc.add_heading("1.2 Problematique", level=2)
+    doc.add_heading("1.2 Les trois approches", level=2)
     doc.add_paragraph(
-        "Deux approches sont possibles pour exploiter ces donnees :"
+        "Ce rapport compare trois architectures possibles pour exploiter ces donnees :"
     )
-    bullets = [
-        ("Approche 1 (actuelle)", "Scraping massif : recuperer tous les evenements via l'API Algolia Browse, les stocker en base PostgreSQL, puis les servir via une API FastAPI."),
-        ("Approche 2 (proposee)", "API a la demande : l'API FastAPI interroge Algolia directement a chaque requete utilisateur, en utilisant les filtres geographiques natifs d'Algolia."),
+    approaches = [
+        (
+            "V1 - Scraping HTML (originale)",
+            "Parcourir les pages HTML d'infolocale.fr avec Selenium et "
+            "BeautifulSoup pour extraire les evenements, les stocker en base "
+            "PostgreSQL, puis les servir via une API FastAPI.",
+        ),
+        (
+            "V2 - Scraping Algolia",
+            "Interroger directement l'API Algolia (index memo_events) pour "
+            "recuperer massivement les evenements, les stocker en base et les servir "
+            "via l'API. Necessite une cle API avec auto-renouvellement.",
+        ),
+        (
+            "V3 - API a la demande (proposee)",
+            "L'API FastAPI interroge Algolia en temps reel a chaque requete "
+            "utilisateur, en utilisant les filtres geographiques natifs d'Algolia. "
+            "Pas de stockage local des evenements.",
+        ),
     ]
-    for label, text in bullets:
+    for label, text in approaches:
         p = doc.add_paragraph()
         run = p.add_run(f"{label} : ")
         run.bold = True
@@ -154,81 +169,128 @@ def generate_report():
     doc.add_page_break()
 
     # ==========================================================
-    # 2. ARCHITECTURE ACTUELLE
+    # 2. V1 - SCRAPING HTML
     # ==========================================================
-    doc.add_heading("2. Architecture actuelle (Scraping Algolia)", level=1)
+    doc.add_heading("2. V1 - Scraping HTML (architecture originale)", level=1)
 
-    doc.add_heading("2.1 Pipeline de donnees", level=2)
+    doc.add_heading("2.1 Principe", level=2)
     doc.add_paragraph(
-        "L'architecture actuelle repose sur 3 pipelines d'ingestion :"
+        "L'architecture originale du projet repose sur le scraping classique des pages "
+        "HTML du site infolocale.fr. Un navigateur Chrome pilote par Selenium charge "
+        "chaque page de resultats, puis BeautifulSoup extrait les informations des "
+        "cartes d'evenements."
     )
 
-    add_styled_table(
-        doc,
-        ["Pipeline", "Source", "Methode", "Volume"],
-        [
-            ["HTML Scraping", "infolocale.fr", "Selenium + BeautifulSoup", "~50 events/page"],
-            ["Algolia API", "Algolia (memo_events)", "HTTPX + Browse endpoint", "110k+ events"],
-            ["Open Data", "data.gouv.fr", "CSV download + parsing", "Variable"],
-        ],
-        col_widths=[3.5, 4, 5, 3.5],
-    )
-
-    doc.add_paragraph()
-
-    doc.add_heading("2.2 Flux de donnees", level=2)
+    doc.add_heading("2.2 Pipeline de donnees", level=2)
     flow_steps = [
-        "Recuperation de la cle API Algolia (automatique via Selenium CDP)",
-        "Scraping massif via l'endpoint Browse (pagination par cursor)",
-        "Enrichissement : geocoding via OpenRouteService",
-        "Deduplication : UPSERT PostgreSQL sur le champ uid",
-        "Stockage en base PostgreSQL (table scanned_events)",
+        "Selenium charge une page de resultats sur infolocale.fr",
+        "BeautifulSoup parse le HTML et extrait les cartes (.memo-card)",
+        "Chaque carte est transformee en objet evenement (titre, date, lieu, image...)",
+        "Les dates en francais sont parsees (ex: \"sam. 15 mars\" -> 2026-03-15)",
+        "Les evenements sont stockes en base PostgreSQL (table scanned_events)",
+        "Deduplication via UPSERT sur le champ uid (infolocale_{data_id})",
+        "Enrichissement optionnel : geocoding via OpenRouteService",
         "Exposition via API FastAPI (GET /api/v1/events)",
-        "Export optionnel en CSV/JSON",
     ]
     for i, step in enumerate(flow_steps, 1):
         doc.add_paragraph(f"{i}. {step}")
 
-    doc.add_heading("2.3 Gestion de la cle API", level=2)
-    doc.add_paragraph(
-        "La cle API Algolia est une secured key avec un timestamp d'expiration "
-        "(validUntil). Le service algolia_key_service.py gere le renouvellement "
-        "automatique via :"
-    )
-    for item in [
-        "Lancement de Chrome headless avec options anti-detection (stealth)",
-        "Chargement de infolocale.fr/activites",
-        "Interception des requetes reseau via Chrome DevTools Protocol (CDP)",
-        "Extraction de la cle depuis les parametres d'URL des requetes Algolia",
-        "Gestion du WAF Ouest-France (attente du challenge, retries)",
-    ]:
-        doc.add_paragraph(item, style="List Bullet")
-
-    doc.add_heading("2.4 Stack technique", level=2)
+    doc.add_heading("2.3 Stack technique", level=2)
     add_styled_table(
         doc,
         ["Composant", "Technologie", "Role"],
         [
+            ["Scraping", "Selenium 4 + BeautifulSoup", "Navigation et parsing HTML"],
+            ["Driver", "webdriver-manager", "Gestion automatique de ChromeDriver"],
             ["API", "FastAPI + Uvicorn", "Serveur REST"],
             ["ORM", "SQLModel (SQLAlchemy + Pydantic)", "Modeles et validation"],
             ["Base de donnees", "PostgreSQL 15+", "Stockage evenements"],
-            ["Scraping", "Selenium 4 + HTTPX", "Recuperation donnees"],
             ["Geocoding", "OpenRouteService", "Enrichissement geographique"],
             ["Migrations", "Alembic", "Schema de base"],
             ["CLI", "Typer + Rich", "Interface en ligne de commande"],
-            ["Logs", "Loguru", "Journalisation structuree"],
         ],
         col_widths=[3.5, 5, 5],
     )
 
+    doc.add_heading("2.4 Limites de cette approche", level=2)
+    for item in [
+        "Lent : ~50 evenements par page, pagination manuelle, 2s de delai entre chaque page",
+        "Fragile : depend de la structure HTML (selecteurs CSS .memo-card, .gender, .day...)",
+        "WAF : le site est protege par un WAF Ouest-France qui bloque les navigateurs headless",
+        "Incomplet : seules les informations visibles sur la carte sont recuperees (pas de description complete)",
+        "Volume limite : scraper 110k evenements prendrait des heures",
+        "Maintenance : tout changement de design du site casse les selecteurs",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
     doc.add_page_break()
 
     # ==========================================================
-    # 3. ARCHITECTURE PROPOSEE
+    # 3. V2 - SCRAPING ALGOLIA
     # ==========================================================
-    doc.add_heading("3. Architecture proposee (API a la demande)", level=1)
+    doc.add_heading("3. V2 - Scraping via API Algolia", level=1)
 
     doc.add_heading("3.1 Principe", level=2)
+    doc.add_paragraph(
+        "Cette approche contourne le HTML en interrogeant directement l'API Algolia "
+        "utilisee par le frontend d'infolocale.fr. L'index memo_events contient "
+        "l'integralite des evenements avec toutes leurs metadonnees (titre, texte, "
+        "lieu, coordonnees GPS, dates, categories, photos...)."
+    )
+
+    doc.add_heading("3.2 Pipeline de donnees", level=2)
+    flow_steps_v2 = [
+        "Appel a l'endpoint Browse d'Algolia (pagination par cursor, sans limite de 1000)",
+        "Recuperation de tous les evenements avec leurs metadonnees completes",
+        "Aplatissement des champs imbriques (lieu, rubrique, _geoloc, photo)",
+        "Stockage en base PostgreSQL ou export direct en CSV/JSON",
+        "Exposition via API FastAPI",
+    ]
+    for i, step in enumerate(flow_steps_v2, 1):
+        doc.add_paragraph(f"{i}. {step}")
+
+    doc.add_heading("3.3 Gestion de la cle API", level=2)
+    doc.add_paragraph(
+        "L'acces a l'API Algolia necessite une \"secured key\" (base64) avec un "
+        "champ validUntil qui expire regulierement. Le service algolia_key_service.py "
+        "gere le renouvellement automatique :"
+    )
+    for item in [
+        "Lancement de Chrome headless avec options anti-detection (stealth)",
+        "Chargement de infolocale.fr/activites pour declencher les requetes Algolia",
+        "Interception des requetes reseau via Chrome DevTools Protocol (CDP)",
+        "Extraction de la cle depuis les parametres d'URL (x-algolia-api-key)",
+        "Gestion du WAF Ouest-France (detection de la page challenge, attente, retries)",
+        "Renouvellement transparent : si la cle expire en cours d'export, elle est renouvelee automatiquement",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("3.4 Avantages par rapport a V1", level=2)
+    for item in [
+        "Beaucoup plus rapide : 1000 evenements par requete vs ~50 par page HTML",
+        "Donnees completes : texte integral, coordonnees GPS, tarifs, accessibilite...",
+        "Plus stable : pas de dependance aux selecteurs CSS du frontend",
+        "Volume : peut recuperer les 110k+ evenements en quelques minutes",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("3.5 Limites", level=2)
+    for item in [
+        "Cle API expirant regulierement (necessite Selenium pour le renouvellement)",
+        "Dependance a l'index Algolia d'Infolocale (s'il change, tout casse)",
+        "Donnees pas forcement a jour entre deux syncs",
+        "Necessite toujours une base PostgreSQL pour le stockage",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_page_break()
+
+    # ==========================================================
+    # 4. V3 - API A LA DEMANDE
+    # ==========================================================
+    doc.add_heading("4. V3 - API a la demande (architecture proposee)", level=1)
+
+    doc.add_heading("4.1 Principe", level=2)
     doc.add_paragraph(
         "Au lieu de scraper et stocker localement les 110k+ evenements, "
         "l'API FastAPI interroge directement Algolia a chaque requete utilisateur. "
@@ -236,18 +298,18 @@ def generate_report():
         "permettent de ne recuperer que les evenements pertinents."
     )
 
-    doc.add_heading("3.2 Flux de donnees simplifie", level=2)
-    flow_steps_new = [
+    doc.add_heading("4.2 Flux de donnees", level=2)
+    flow_steps_v3 = [
         "L'utilisateur envoie une requete : GET /events?lat=48.8&lng=2.3&radius=10km",
-        "L'API FastAPI transforme la requete en appel Algolia",
+        "L'API FastAPI transforme la requete en appel Algolia avec les filtres natifs",
         "Algolia retourne uniquement les evenements dans le rayon demande",
         "L'API formate et retourne la reponse au frontend",
-        "Cache optionnel : les resultats sont mis en cache (Redis ou PostgreSQL)",
+        "Cache optionnel : les resultats sont mis en cache (Redis ou in-memory)",
     ]
-    for i, step in enumerate(flow_steps_new, 1):
+    for i, step in enumerate(flow_steps_v3, 1):
         doc.add_paragraph(f"{i}. {step}")
 
-    doc.add_heading("3.3 Filtres Algolia disponibles", level=2)
+    doc.add_heading("4.3 Filtres Algolia disponibles", level=2)
     add_styled_table(
         doc,
         ["Parametre Algolia", "Description", "Exemple"],
@@ -264,12 +326,9 @@ def generate_report():
 
     doc.add_paragraph()
 
-    doc.add_heading("3.4 Composants supprimes", level=2)
-    doc.add_paragraph(
-        "Dans cette approche, plusieurs composants deviennent inutiles :"
-    )
+    doc.add_heading("4.4 Composants supprimes par rapport a V1/V2", level=2)
     for item in [
-        "scraper_service.py (scraping HTML Selenium)",
+        "scraper_service.py (scraping HTML Selenium — V1)",
         "storage_service.py (stockage PostgreSQL des evenements)",
         "opendata_import_service.py (import CSV data.gouv.fr)",
         "export_events.py (export CSV/JSON)",
@@ -278,10 +337,10 @@ def generate_report():
     ]:
         doc.add_paragraph(item, style="List Bullet")
 
-    doc.add_heading("3.5 Composants conserves", level=2)
+    doc.add_heading("4.5 Composants conserves", level=2)
     for item in [
-        "algolia_service.py (adapte pour les requetes a la demande)",
-        "algolia_key_service.py (renouvellement automatique de cle)",
+        "algolia_service.py (adapte pour les requetes a la demande avec filtres geo)",
+        "algolia_key_service.py (renouvellement automatique de cle — identique a V2)",
         "geocoding_service.py (geocoding inverse si necessaire)",
         "API FastAPI (routes adaptees pour le proxy Algolia)",
     ]:
@@ -290,158 +349,227 @@ def generate_report():
     doc.add_page_break()
 
     # ==========================================================
-    # 4. COMPARAISON DETAILLEE
+    # 5. COMPARAISON DETAILLEE
     # ==========================================================
-    doc.add_heading("4. Comparaison detaillee", level=1)
+    doc.add_heading("5. Comparaison detaillee des 3 approches", level=1)
 
-    doc.add_heading("4.1 Tableau comparatif", level=2)
+    doc.add_heading("5.1 Tableau comparatif", level=2)
     add_styled_table(
         doc,
-        ["Critere", "Scraping Algolia", "API a la demande"],
+        ["Critere", "V1 - Scraping HTML", "V2 - Scraping Algolia", "V3 - API a la demande"],
         [
-            ["Fraicheur des donnees", "Donnees obsoletes entre 2 syncs", "Temps reel"],
-            ["Volume stocke", "110k+ events en base", "Aucun (ou cache temporaire)"],
-            ["Latence utilisateur", "Rapide (donnees locales)", "Moyenne (~200-500ms Algolia)"],
-            ["Complexite infrastructure", "PostgreSQL + Alembic + Cron", "FastAPI + Redis (optionnel)"],
-            ["Resilience WAF", "Risque de blocage au scraping", "Meme risque (cle API)"],
-            ["Filtrage geographique", "Post-traitement cote serveur", "Natif Algolia (aroundLatLng)"],
-            ["Cout de maintenance", "Eleve (3 pipelines, sync, cle)", "Faible (1 service, cle)"],
-            ["Mode offline", "Oui (donnees locales)", "Non"],
-            ["Analytique / stats", "Oui (requetes SQL)", "Limite (pas de donnees locales)"],
-            ["Conformite legale", "Zone grise (scraping massif)", "Plus leger (usage normal API)"],
+            [
+                "Fraicheur des donnees",
+                "Obsoletes entre 2 syncs",
+                "Obsoletes entre 2 syncs",
+                "Temps reel",
+            ],
+            [
+                "Richesse des donnees",
+                "Limitee (carte HTML)",
+                "Complete (toutes les metadonnees)",
+                "Complete (toutes les metadonnees)",
+            ],
+            [
+                "Volume stocke",
+                "Variable (scraping lent)",
+                "110k+ events en base",
+                "Aucun (ou cache temporaire)",
+            ],
+            [
+                "Latence utilisateur",
+                "Rapide (SQL local)",
+                "Rapide (SQL local)",
+                "Moyenne (~200-500ms)",
+            ],
+            [
+                "Complexite infra",
+                "PostgreSQL + Selenium + Cron",
+                "PostgreSQL + Selenium (cle) + Cron",
+                "FastAPI + Redis (optionnel)",
+            ],
+            [
+                "Resilience WAF",
+                "Bloquant (chaque page)",
+                "Uniquement pour la cle API",
+                "Uniquement pour la cle API",
+            ],
+            [
+                "Filtrage geographique",
+                "Post-traitement serveur",
+                "Post-traitement serveur",
+                "Natif Algolia (aroundLatLng)",
+            ],
+            [
+                "Gestion de cle Algolia",
+                "Non necessaire",
+                "Requise (auto-refresh)",
+                "Requise (auto-refresh)",
+            ],
+            [
+                "Mode offline",
+                "Oui",
+                "Oui",
+                "Non",
+            ],
+            [
+                "Maintenance",
+                "Elevee (selecteurs CSS)",
+                "Moyenne (cle API)",
+                "Faible",
+            ],
+            [
+                "Conformite legale",
+                "Zone grise (scraping)",
+                "Zone grise (scraping massif)",
+                "Plus leger (usage normal)",
+            ],
         ],
-        col_widths=[4, 5.5, 5.5],
+        col_widths=[3, 3.5, 3.5, 3.5],
     )
 
     doc.add_paragraph()
 
-    doc.add_heading("4.2 Fraicheur des donnees", level=2)
+    doc.add_heading("5.2 Fraicheur des donnees", level=2)
     doc.add_paragraph(
-        "L'approche scraping necessite une synchronisation reguliere (cron job) "
+        "Les approches V1 et V2 necessitent une synchronisation reguliere (cron job) "
         "pour maintenir les donnees a jour. Entre deux syncs, les evenements "
         "ajoutes, modifies ou annules sur Infolocale ne sont pas refletes.\n\n"
-        "L'approche API a la demande retourne toujours les donnees les plus "
-        "recentes puisqu'elle interroge Algolia en temps reel."
+        "L'approche V3 retourne toujours les donnees les plus recentes puisqu'elle "
+        "interroge Algolia en temps reel a chaque requete utilisateur."
     )
 
-    doc.add_heading("4.3 Filtrage geographique", level=2)
+    doc.add_heading("5.3 Filtrage geographique", level=2)
     doc.add_paragraph(
-        "Avec le scraping, le filtrage geographique est fait cote serveur apres "
+        "Avec V1 et V2, le filtrage geographique est fait cote serveur apres "
         "avoir recupere tous les evenements. Cela implique de stocker les "
         "coordonnees GPS et de calculer les distances.\n\n"
-        "Algolia propose nativement les filtres aroundLatLng et aroundRadius "
-        "qui effectuent ce calcul cote Algolia, avec des performances optimisees "
-        "(index geographique). Le frontend n'a qu'a envoyer la position GPS de "
-        "l'utilisateur."
+        "V3 utilise les filtres natifs d'Algolia (aroundLatLng, aroundRadius) "
+        "qui effectuent ce calcul cote Algolia avec des performances optimisees "
+        "(index geographique). Le frontend n'a qu'a envoyer la position de l'utilisateur."
     )
 
-    doc.add_heading("4.4 Deduplication", level=2)
+    doc.add_heading("5.4 Robustesse face au WAF", level=2)
     doc.add_paragraph(
-        "Le scraping necessite un mecanisme de deduplication (UPSERT sur uid) "
-        "pour eviter les doublons entre les imports. L'API a la demande n'a pas "
-        "ce probleme puisqu'elle ne stocke rien."
+        "V1 est la plus vulnerable : chaque page scrapee passe par le WAF "
+        "Ouest-France, qui peut bloquer le navigateur headless a tout moment.\n\n"
+        "V2 et V3 ne sont exposees au WAF que lors du renouvellement de la cle API "
+        "(une seule visite de page necessaire), ce qui reduit considerablement "
+        "le risque de blocage."
     )
 
     doc.add_page_break()
 
     # ==========================================================
-    # 5. ANALYSE DES RISQUES
+    # 6. ANALYSE DES RISQUES
     # ==========================================================
-    doc.add_heading("5. Analyse des risques", level=1)
+    doc.add_heading("6. Analyse des risques", level=1)
 
     add_styled_table(
         doc,
-        ["Risque", "Scraping", "API a la demande", "Impact"],
+        ["Risque", "V1 - HTML", "V2 - Algolia", "V3 - API demande"],
         [
             [
-                "Expiration de la cle API",
-                "Bloque le pipeline de sync",
-                "Bloque les requetes utilisateur",
-                "Critique (les 2)",
-            ],
-            [
                 "Blocage WAF",
-                "Bloque le scraping\n(donnees en cache restent dispo)",
-                "Bloque le renouvellement de cle",
-                "Eleve",
+                "Critique\n(chaque page)",
+                "Faible\n(cle uniquement)",
+                "Faible\n(cle uniquement)",
             ],
             [
-                "Changement d'API Algolia",
-                "Casse le scraping",
-                "Casse les requetes",
-                "Critique (les 2)",
+                "Changement design HTML",
+                "Critique\n(selecteurs cassent)",
+                "Aucun impact",
+                "Aucun impact",
             ],
             [
-                "Infolocale change d'index",
-                "Casse completement",
-                "Casse completement",
-                "Critique (les 2)",
+                "Expiration cle Algolia",
+                "Aucun impact",
+                "Moyen\n(auto-refresh gere)",
+                "Moyen\n(auto-refresh gere)",
             ],
             [
-                "Rate limiting Algolia",
-                "Pendant le scraping\n(110k requetes)",
-                "Proportionnel au trafic\n(quelques req/min)",
-                "Moyen",
+                "Changement index Algolia",
+                "Aucun impact",
+                "Critique",
+                "Critique",
+            ],
+            [
+                "Rate limiting",
+                "Eleve\n(nombreuses pages)",
+                "Moyen\n(browse massif)",
+                "Faible\n(quelques req/min)",
             ],
             [
                 "Panne PostgreSQL",
-                "Plus d'acces aux donnees",
-                "Pas d'impact\n(pas de base requise)",
-                "Eleve (scraping)",
+                "Critique\n(plus de donnees)",
+                "Critique\n(plus de donnees)",
+                "Aucun impact\n(pas de base requise)",
             ],
             [
-                "Conformite RGPD/legale",
-                "Stockage massif de donnees tierces",
-                "Proxy sans stockage",
-                "Moyen (scraping)",
+                "Conformite legale",
+                "Risque eleve\n(scraping HTML)",
+                "Risque moyen\n(scraping API)",
+                "Risque faible\n(usage proxy)",
             ],
         ],
-        col_widths=[3.5, 4, 4, 3],
-    )
-
-    doc.add_paragraph()
-    p = doc.add_paragraph()
-    run = p.add_run("Note : ")
-    run.bold = True
-    p.add_run(
-        "Le risque d'expiration de cle est commun aux deux approches. "
-        "Le service algolia_key_service.py le gere automatiquement dans les deux cas."
+        col_widths=[3.5, 3.5, 3.5, 3.5],
     )
 
     doc.add_page_break()
 
     # ==========================================================
-    # 6. PERFORMANCE ET SCALABILITE
+    # 7. PERFORMANCE ET SCALABILITE
     # ==========================================================
-    doc.add_heading("6. Performance et scalabilite", level=1)
+    doc.add_heading("7. Performance et scalabilite", level=1)
 
-    doc.add_heading("6.1 Latence", level=2)
+    doc.add_heading("7.1 Latence", level=2)
     add_styled_table(
         doc,
-        ["Operation", "Scraping (donnees locales)", "API a la demande"],
+        ["Operation", "V1 - HTML", "V2 - Algolia", "V3 - API demande"],
         [
-            ["Requete utilisateur", "~10-50 ms (SQL local)", "~200-500 ms (Algolia)"],
-            ["Sync initiale", "~5-15 min (110k events)", "Aucune"],
-            ["Renouvellement de cle", "~10-15 s (Selenium)", "~10-15 s (Selenium)"],
-            ["Recherche geographique", "~50-200 ms (PostGIS/SQL)", "~50-100 ms (Algolia natif)"],
+            [
+                "Scraping initial",
+                "Plusieurs heures\n(110k events)",
+                "~5-15 min\n(110k events)",
+                "Aucun",
+            ],
+            [
+                "Requete utilisateur",
+                "~10-50 ms\n(SQL local)",
+                "~10-50 ms\n(SQL local)",
+                "~200-500 ms\n(Algolia distant)",
+            ],
+            [
+                "Recherche geographique",
+                "~50-200 ms\n(calcul serveur)",
+                "~50-200 ms\n(calcul serveur)",
+                "~50-100 ms\n(index Algolia natif)",
+            ],
+            [
+                "Renouvellement cle",
+                "Non applicable",
+                "~10-15 s\n(Selenium)",
+                "~10-15 s\n(Selenium)",
+            ],
         ],
-        col_widths=[4.5, 5, 5],
+        col_widths=[4, 3.5, 3.5, 3.5],
     )
 
     doc.add_paragraph()
 
-    doc.add_heading("6.2 Scalabilite", level=2)
+    doc.add_heading("7.2 Scalabilite", level=2)
     doc.add_paragraph(
-        "Approche scraping : la scalabilite est limitee par la taille de la base "
-        "PostgreSQL et le temps de synchronisation. Chaque nouvelle sync doit "
-        "parcourir tous les evenements.\n\n"
-        "Approche API : la scalabilite est geree par Algolia (infrastructure CDN). "
-        "L'ajout d'un cache Redis permet de reduire les appels repetes a Algolia."
+        "V1 : la scalabilite est tres limitee. Le temps de scraping croit "
+        "lineairement avec le nombre de pages, et le WAF peut bloquer a tout moment.\n\n"
+        "V2 : meilleure scalabilite grace a l'API Algolia, mais la taille de la base "
+        "PostgreSQL et le temps de synchronisation restent des facteurs limitants.\n\n"
+        "V3 : la scalabilite est geree par Algolia (infrastructure CDN mondiale). "
+        "L'ajout d'un cache Redis permet de reduire les appels repetes."
     )
 
-    doc.add_heading("6.3 Cache (approche hybride)", level=2)
+    doc.add_heading("7.3 Cache (approche V3)", level=2)
     doc.add_paragraph(
-        "L'approche recommandee utilise un cache a plusieurs niveaux :"
+        "L'approche V3 peut utiliser un cache a plusieurs niveaux :"
     )
     for item in [
         "Cache applicatif (in-memory, TTL 5 min) : pour les requetes identiques rapprochees",
@@ -453,91 +581,92 @@ def generate_report():
     doc.add_page_break()
 
     # ==========================================================
-    # 7. COUT ET MAINTENANCE
+    # 8. COUT ET MAINTENANCE
     # ==========================================================
-    doc.add_heading("7. Cout et maintenance", level=1)
+    doc.add_heading("8. Cout et maintenance", level=1)
 
-    doc.add_heading("7.1 Complexite du code", level=2)
+    doc.add_heading("8.1 Complexite du code", level=2)
     add_styled_table(
         doc,
-        ["Composant", "Scraping (lignes)", "API a la demande (lignes)"],
+        ["Composant", "V1 - HTML", "V2 - Algolia", "V3 - API demande"],
         [
-            ["scraper_service.py", "~250", "Supprime"],
-            ["algolia_service.py", "~300", "~150 (simplifie)"],
-            ["algolia_key_service.py", "~280", "~280 (inchange)"],
-            ["storage_service.py", "~150", "Supprime"],
-            ["opendata_import_service.py", "~200", "Supprime"],
-            ["export (CSV/JSON)", "~200", "Supprime"],
-            ["routes.py", "~200", "~100 (simplifie)"],
-            ["models + migrations", "~150", "~50 (minimal)"],
-            ["Total approximatif", "~1 730 lignes", "~580 lignes"],
+            ["scraper_service.py", "~250 lignes", "Inutilise", "Supprime"],
+            ["algolia_service.py", "Absent", "~300 lignes", "~150 (simplifie)"],
+            ["algolia_key_service.py", "Absent", "~280 lignes", "~280 (inchange)"],
+            ["storage_service.py", "~150 lignes", "~150 lignes", "Supprime"],
+            ["opendata_import_service.py", "~200 lignes", "~200 lignes", "Supprime"],
+            ["export (CSV/JSON)", "~200 lignes", "~200 lignes", "Supprime"],
+            ["routes.py", "~200 lignes", "~200 lignes", "~100 (simplifie)"],
+            ["models + migrations", "~150 lignes", "~150 lignes", "~50 (minimal)"],
+            ["Total approximatif", "~1 150 lignes", "~1 480 lignes", "~580 lignes"],
         ],
-        col_widths=[5, 4.5, 5],
+        col_widths=[4, 3, 3, 3],
     )
 
     doc.add_paragraph()
 
-    p = doc.add_paragraph()
-    run = p.add_run("Reduction de ~65% du code ")
-    run.bold = True
-    p.add_run(
-        "avec l'approche API a la demande, ce qui reduit proportionnellement "
-        "la surface de bugs et l'effort de maintenance."
-    )
-
-    doc.add_heading("7.2 Infrastructure", level=2)
+    doc.add_heading("8.2 Infrastructure", level=2)
     add_styled_table(
         doc,
-        ["Ressource", "Scraping", "API a la demande"],
+        ["Ressource", "V1 - HTML", "V2 - Algolia", "V3 - API demande"],
         [
-            ["PostgreSQL", "Requis (scanned_events)", "Optionnel (cache/users)"],
-            ["Redis", "Non utilise", "Optionnel (cache)"],
-            ["Chrome/Selenium", "Pour scraping + cle API", "Uniquement pour cle API"],
-            ["Cron job", "Requis (sync periodique)", "Non requis"],
-            ["Espace disque", "~500 Mo (110k events)", "Minimal"],
+            ["PostgreSQL", "Requis", "Requis", "Optionnel (cache)"],
+            ["Redis", "Non utilise", "Non utilise", "Optionnel (cache)"],
+            ["Chrome/Selenium", "Requis (scraping)", "Requis (cle API)", "Requis (cle API)"],
+            ["Cron job", "Requis (sync)", "Requis (sync)", "Non requis"],
+            ["Espace disque", "~500 Mo", "~500 Mo", "Minimal"],
         ],
-        col_widths=[4, 5, 5.5],
+        col_widths=[4, 3, 3.5, 3.5],
     )
 
     doc.add_page_break()
 
     # ==========================================================
-    # 8. RECOMMANDATION FINALE
+    # 9. RECOMMANDATION FINALE
     # ==========================================================
-    doc.add_heading("8. Recommandation finale", level=1)
+    doc.add_heading("9. Recommandation finale", level=1)
 
-    doc.add_heading("8.1 Approche recommandee : Hybride", level=2)
+    doc.add_heading("9.1 Synthese", level=2)
+    doc.add_paragraph(
+        "V1 (scraping HTML) a permis de demarrer le projet et de valider le concept, "
+        "mais cette approche est fragile, lente et limitee en donnees.\n\n"
+        "V2 (scraping Algolia) a apporte un gain majeur en termes de vitesse, de "
+        "completude des donnees et de stabilite. Le mecanisme d'auto-renouvellement "
+        "de la cle API resout le probleme de l'expiration.\n\n"
+        "V3 (API a la demande) est l'evolution logique pour un cas d'usage centre "
+        "sur la recherche d'evenements par localisation : elle est plus simple, "
+        "garantit des donnees fraiches, et exploite le filtrage geographique natif d'Algolia."
+    )
+
+    doc.add_heading("9.2 Approche recommandee : Hybride V2+V3", level=2)
     p = doc.add_paragraph()
-    run = p.add_run(
-        "L'approche recommandee est un modele hybride qui combine les avantages "
-        "des deux architectures :"
+    p.add_run(
+        "L'approche recommandee combine les avantages de V2 et V3 :"
     )
 
     doc.add_paragraph()
 
-    # Encadre recommandation
     rec_items = [
         (
-            "API a la demande pour les requetes utilisateur",
+            "API a la demande pour les requetes utilisateur (V3)",
             "Les recherches geographiques et par categorie sont transmises "
             "directement a Algolia avec les filtres natifs (aroundLatLng, facetFilters). "
-            "Cela garantit des donnees toujours fraiches et un filtrage performant.",
+            "Donnees toujours fraiches, filtrage performant.",
         ),
         (
             "Cache intelligent",
             "Un cache Redis (TTL 15-30 min) stocke les resultats des requetes "
-            "frequentes pour eviter de surcharger Algolia et reduire la latence.",
+            "frequentes pour reduire la latence et eviter de surcharger Algolia.",
         ),
         (
-            "Renouvellement automatique de la cle",
-            "Le service algolia_key_service.py existant gere le renouvellement "
-            "transparent de la cle API expiree.",
+            "Renouvellement automatique de la cle (V2)",
+            "Le service algolia_key_service.py gere le renouvellement "
+            "transparent de la cle API expiree, commun a V2 et V3.",
         ),
         (
-            "Base PostgreSQL allegee",
-            "PostgreSQL conserve uniquement les donnees utilisateur "
-            "(favoris, preferences, historique) et eventuellement un cache "
-            "d'evenements pour l'analytique.",
+            "Export massif optionnel (V2)",
+            "Conserver la possibilite d'export CSV/JSON via algolia_service.py "
+            "pour les besoins d'analytique ou d'archivage.",
         ),
     ]
     for label, text in rec_items:
@@ -547,29 +676,18 @@ def generate_report():
         run.font.color.rgb = RGBColor(46, 116, 181)
         p.add_run(text)
 
-    doc.add_heading("8.2 Quand garder le scraping", level=2)
-    doc.add_paragraph(
-        "Le scraping massif reste pertinent dans les cas suivants :"
-    )
-    for item in [
-        "Besoin d'analytique avancee (statistiques, tendances, rapports)",
-        "Mode offline requis (application mobile sans connexion)",
-        "Besoin de croiser avec d'autres sources de donnees localement",
-        "Requirement de conserver un historique des evenements passes",
-    ]:
-        doc.add_paragraph(item, style="List Bullet")
-
-    doc.add_heading("8.3 Matrice de decision", level=2)
+    doc.add_heading("9.3 Matrice de decision", level=2)
     add_styled_table(
         doc,
         ["Cas d'usage", "Approche recommandee"],
         [
-            ["App web : chercher des evenements proches", "API a la demande"],
-            ["App mobile avec mode offline", "Scraping + sync"],
-            ["Dashboard analytique", "Scraping (donnees locales)"],
-            ["Moteur de recommandation", "Hybride (cache + ML local)"],
-            ["Simple affichage d'evenements", "API a la demande"],
-            ["Export massif CSV/JSON", "Scraping"],
+            ["App web : chercher des evenements proches", "V3 - API a la demande"],
+            ["App mobile avec mode offline", "V2 - Scraping Algolia + sync"],
+            ["Dashboard analytique", "V2 - Scraping Algolia (donnees locales)"],
+            ["Moteur de recommandation", "Hybride V2+V3 (cache + ML local)"],
+            ["Simple affichage d'evenements", "V3 - API a la demande"],
+            ["Export massif CSV/JSON", "V2 - Scraping Algolia"],
+            ["Prototype rapide", "V1 - Scraping HTML (deja en place)"],
         ],
         col_widths=[7, 7],
     )
@@ -577,12 +695,12 @@ def generate_report():
     doc.add_page_break()
 
     # ==========================================================
-    # 9. PLAN DE MIGRATION
+    # 10. PLAN DE MIGRATION
     # ==========================================================
-    doc.add_heading("9. Plan de migration", level=1)
+    doc.add_heading("10. Plan de migration vers V3", level=1)
 
     doc.add_paragraph(
-        "Si la decision est prise de migrer vers l'approche API a la demande, "
+        "Si la decision est prise de migrer vers l'approche V3 (API a la demande), "
         "voici les etapes recommandees :"
     )
 
@@ -622,9 +740,10 @@ def generate_report():
         (
             "Phase 5 : Nettoyage (1 jour)",
             [
-                "Supprimer les services inutilises (scraper, storage, opendata)",
+                "Supprimer scraper_service.py (V1 obsolete)",
                 "Simplifier les migrations Alembic",
                 "Mettre a jour la documentation",
+                "Conserver algolia_service.py et export_events.py pour l'export ponctuel",
             ],
         ),
     ]
@@ -647,19 +766,18 @@ def generate_report():
     doc.add_heading("Conclusion", level=1)
 
     doc.add_paragraph(
-        "L'approche actuelle par scraping massif a permis de construire une base "
-        "solide avec 3 pipelines d'ingestion, un mecanisme de deduplication et "
-        "un renouvellement automatique de la cle API. Cependant, pour un cas "
-        "d'usage centre sur la recherche d'evenements par localisation, l'approche "
-        "API a la demande est plus adaptee : elle est plus simple, plus fiable, "
-        "et garantit des donnees toujours a jour."
-    )
-
-    doc.add_paragraph(
-        "L'approche hybride recommandee conserve le meilleur des deux mondes : "
-        "la fraicheur des donnees en temps reel, le filtrage geographique "
-        "natif d'Algolia, et la possibilite de maintenir un cache local pour "
-        "les performances et l'analytique."
+        "Le projet a evolue en trois etapes naturelles :\n\n"
+        "V1 (scraping HTML) a permis de valider le concept et de construire "
+        "l'infrastructure de base (API, base de donnees, modeles).\n\n"
+        "V2 (scraping Algolia) a apporte un saut qualitatif majeur : acces a "
+        "l'integralite des 110k+ evenements avec toutes leurs metadonnees, "
+        "et un mecanisme robuste de renouvellement de cle API.\n\n"
+        "V3 (API a la demande) est l'evolution naturelle pour un produit centre "
+        "sur la recherche d'evenements par localisation. Elle simplifie "
+        "drastiquement l'architecture tout en garantissant des donnees toujours "
+        "a jour et un filtrage geographique performant.\n\n"
+        "L'approche hybride V2+V3 recommandee permet de conserver le meilleur de "
+        "chaque version selon les besoins."
     )
 
     doc.add_paragraph()
@@ -672,7 +790,7 @@ def generate_report():
     # ==========================================================
     # SAUVEGARDER
     # ==========================================================
-    output_path = "data/exports/rapport_comparatif_scraping_vs_api.docx"
+    output_path = "doc/rapport_comparatif_scraping_vs_api.docx"
     from pathlib import Path
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     doc.save(output_path)
