@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: infolocale_postgres
     env_file:
       - .env
@@ -37,6 +37,18 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
+  # Redis - Geocoding cache
+  redis:
+    image: redis:7-alpine
+    container_name: infolocale_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - infolocale_network
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
   # FastAPI Application (décommente si tu veux lancer l'API dans Docker)
   # api:
   #   build:
@@ -70,4 +82,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local

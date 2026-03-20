@@ -160,6 +160,78 @@ class Settings(BaseSettings):
     )
 
     # ==========================================
+    # GEOCODING OPTIMIZATION
+    # ==========================================
+    GEOCODING_BATCH_SIZE: int = Field(
+        default=10,
+        description="Number of concurrent geocoding requests per batch"
+    )
+    GEOCODING_BATCH_DELAY: float = Field(
+        default=15.0,
+        description="Delay between batches (seconds) to respect rate limits"
+    )
+    GEOCODING_CACHE_ENABLED: bool = Field(
+        default=True,
+        description="Enable Redis cache for geocoding results"
+    )
+    GEOCODING_CACHE_TTL: int = Field(
+        default=60 * 60 * 24 * 30,  # 30 days
+        description="Cache TTL for successful geocoding results (seconds)"
+    )
+    GEOCODING_CACHE_NEGATIVE_TTL: int = Field(
+        default=60 * 60 * 24,  # 1 day
+        description="Cache TTL for failed geocoding attempts (seconds)"
+    )
+
+    # ==========================================
+    # REDIS CONFIGURATION
+    # ==========================================
+    REDIS_HOST: str = Field(
+        default="localhost",
+        description="Redis host"
+    )
+    REDIS_PORT: int = Field(
+        default=6379,
+        description="Redis port"
+    )
+    REDIS_DB: int = Field(
+        default=0,
+        description="Redis database number"
+    )
+    REDIS_PASSWORD: str = Field(
+        default="",
+        description="Redis password (if required)"
+    )
+    REDIS_URL: str = Field(
+        default="",
+        description="Full Redis URL (overrides REDIS_* vars)"
+    )
+
+    @property
+    def redis_url(self) -> str:
+        """Build Redis URL when REDIS_URL is not explicitly provided."""
+        if self.REDIS_URL:
+            return self.REDIS_URL
+        password = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return f"redis://{password}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    # ==========================================
+    # SCRAPING PARALLELISM
+    # ==========================================
+    SCRAPING_PARALLEL_PAGES: bool = Field(
+        default=False,
+        description="Enable parallel page scraping with multiple drivers"
+    )
+    SCRAPING_MAX_WORKERS: int = Field(
+        default=2,
+        description="Maximum number of parallel WebDriver instances"
+    )
+    SCRAPING_REGION_URL_TEMPLATE: str = Field(
+        default="{base_url}/{region}",
+        description="URL template for region-based scraping"
+    )
+
+    # ==========================================
     # EXPORT PATHS
     # ==========================================
     EXPORT_CSV_PATH: str = Field(

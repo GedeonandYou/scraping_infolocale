@@ -19,7 +19,7 @@ class OpenDataImportService:
     """
     Service pour télécharger et importer les données Open Data Infolocale.
 
-    Source : https://www.data.gouv.fr/fr/datasets/donnees-evenementielles-infolocale/
+    Source : https://www.data.gouv.fr/fr/datasets/donnees-evenementieles-infolocale/
     Licence : ODbL (Open Database License)
     """
 
