@@ -67,6 +67,12 @@ class JSONExporter:
                     'tags': event.tags,
                     'artists': event.artists,
                     'sponsors': event.sponsors,
+                    'accessibilites': event.accessibilites,
+                    'ages': event.ages,
+                    'genre': event.genre,
+                    'annule': event.annule,
+                    'complet': event.complet,
+                    'permanent': event.permanent,
                     'location': {
                         'name': event.location_name,
                         'address': event.address,

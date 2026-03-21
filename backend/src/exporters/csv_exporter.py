@@ -42,13 +42,14 @@ class CSVExporter:
             with open(self.output_path, 'w', newline='', encoding='utf-8') as csvfile:
                 # Define CSV columns
                 fieldnames = [
-                    'id', 'uid', 'title', 'category',
+                    'id', 'uid', 'title', 'category', 'genre',
                     'begin_date', 'end_date', 'start_time', 'end_time',
                     'description', 'organizer', 'pricing', 'website',
                     'location_name', 'address', 'zipcode', 'city', 'state', 'country',
                     'latitude', 'longitude', 'display_name',
                     'place_id', 'place_name', 'rating',
-                    'tags', 'artists', 'sponsors',
+                    'tags', 'artists', 'sponsors', 'accessibilites', 'ages',
+                    'annule', 'complet', 'permanent',
                     'is_private', 'created_at'
                 ]
 
@@ -82,9 +83,15 @@ class CSVExporter:
                         'place_id': event.place_id,
                         'place_name': event.place_name,
                         'rating': event.rating,
+                        'genre': event.genre,
                         'tags': '|'.join(event.tags) if event.tags else '',
                         'artists': '|'.join(event.artists) if event.artists else '',
                         'sponsors': '|'.join(event.sponsors) if event.sponsors else '',
+                        'accessibilites': '|'.join(event.accessibilites) if event.accessibilites else '',
+                        'ages': '|'.join(event.ages) if event.ages else '',
+                        'annule': event.annule,
+                        'complet': event.complet,
+                        'permanent': event.permanent,
                         'is_private': event.is_private,
                         'created_at': event.created_at,
                     }
