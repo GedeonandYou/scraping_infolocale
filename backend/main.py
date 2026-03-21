@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from src.services.scraper_service import ScraperService
 from src.services.storage_service import StorageService
 from src.services.opendata_import_service import OpenDataImportService
+from src.services.algolia_import_service import AlgoliaImportService
 from src.exporters.csv_exporter import CSVExporter
 from src.exporters.json_exporter import JSONExporter
 from src.models.database import engine
@@ -64,6 +65,40 @@ def import_opendata(
 
     except Exception as e:
         console.print(f"[bold red]✗ Erreur lors de l'import: {e}[/bold red]")
+        raise
+    finally:
+        importer.close()
+
+
+@app.command()
+def import_algolia(
+    dept: str = typer.Option("", help="Slug d'un seul département (ex: vaucluse, paris, nord)"),
+    limit: int = typer.Option(0, help="Nombre max d'événements (0 = illimité)"),
+    batch_size: int = typer.Option(500, help="Taille des batches d'insertion"),
+):
+    """Importer massivement les événements depuis l'API Algolia d'Infolocale.
+
+    Exemples :
+      python main.py import-algolia                   # tous les départements
+      python main.py import-algolia --limit 200       # test rapide
+      python main.py import-algolia --dept vaucluse   # un seul département
+    """
+    if dept:
+        console.print(f"[bold blue]Import Algolia — département : {dept}...[/bold blue]\n")
+    else:
+        console.print("[bold blue]Import Algolia (tous les départements)...[/bold blue]\n")
+
+    importer = AlgoliaImportService()
+
+    try:
+        total_saved = importer.import_all(
+            dept_slug=dept,
+            limit=limit,
+            batch_size=batch_size,
+        )
+        console.print(f"\n[bold green]✓ Import terminé : {total_saved} événements sauvegardés![/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]✗ Erreur lors de l'import Algolia : {e}[/bold red]")
         raise
     finally:
         importer.close()

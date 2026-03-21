@@ -53,6 +53,14 @@ class ScannedEvent(SQLModel, table=True):
         default=None,
         sa_column=Column(ARRAY(Text))
     )
+    accessibilites: Optional[list[str]] = Field(
+        default=None,
+        sa_column=Column(ARRAY(Text))
+    )
+    ages: Optional[list[str]] = Field(
+        default=None,
+        sa_column=Column(ARRAY(Text))
+    )
 
     # ===== CHAMPS DE LOCALISATION =====
     location_name: Optional[str] = Field(default=None, max_length=500)
@@ -75,6 +83,12 @@ class ScannedEvent(SQLModel, table=True):
         sa_column=Column(ARRAY(Text))
     )
     rating: Optional[float] = Field(default=None)
+
+    # ===== CHAMPS ALGOLIA =====
+    genre: Optional[str] = Field(default=None, max_length=255)       # sous-catégorie (ex: "Animation")
+    annule: bool = Field(default=False, index=True)                   # événement annulé
+    complet: bool = Field(default=False)                              # événement complet/sold out
+    permanent: bool = Field(default=False)                            # événement permanent
 
     # ===== CHAMPS TECHNIQUES =====
     image_path: Optional[str] = Field(default=None, max_length=500)

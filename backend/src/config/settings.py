@@ -232,6 +232,26 @@ class Settings(BaseSettings):
     )
 
     # ==========================================
+    # ALGOLIA CONFIGURATION
+    # ==========================================
+    ALGOLIA_APP_ID: str = Field(
+        default="",
+        description="Algolia Application ID (visible dans les DevTools de infolocale.fr)"
+    )
+    ALGOLIA_API_KEY: str = Field(
+        default="",
+        description="Clé de recherche Algolia (read-only, rotative ~30j)"
+    )
+    ALGOLIA_INDEX_NAME: str = Field(
+        default="memo_events",
+        description="Nom de l'index Algolia"
+    )
+    ALGOLIA_HITS_PER_PAGE: int = Field(
+        default=1000,
+        description="Nombre de hits par page lors du Browse"
+    )
+
+    # ==========================================
     # EXPORT PATHS
     # ==========================================
     EXPORT_CSV_PATH: str = Field(
